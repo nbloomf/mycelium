@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Substitutions</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+  <style type="text/css">
+a.sourceLine { display: inline-block; line-height: 1.25; }
+a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
+a.sourceLine:empty { height: 1.2em; position: absolute; }
+.sourceCode { overflow: visible; }
+code.sourceCode { white-space: pre; position: relative; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+code.sourceCode { white-space: pre-wrap; }
+a.sourceLine { text-indent: -1em; padding-left: 1em; }
+}
+pre.numberSource a.sourceLine
+  { position: relative; }
+pre.numberSource a.sourceLine:empty
+  { position: absolute; }
+pre.numberSource a.sourceLine::before
+  { content: attr(data-line-number);
+    position: absolute; left: -5em; text-align: right; vertical-align: baseline;
+    border: none; pointer-events: all;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {  }
+@media screen {
+a.sourceLine::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS_CHTML-full" type="text/javascript"></script>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<header>
+<h1 class="title">Substitutions</h1>
+</header>
+<p>Two fundamental operations on grammars with variables are <em>substitution</em> and <em>unification</em>.</p>
+<p>A <em>substitution</em> for a grammar is a mapping from variables to expressions, which can be <em>applied</em> to a concrete expression. Exactly how substitutions are applied depends on the details of the grammar, but even without knowing those details we can develop a useful algebra of substitutions.</p>
+<p><em>Unification</em> corresponds to a kind of factorization on expressions.</p>
+<p>As usual we start with some module imports.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ot">{-# LANGUAGE FlexibleInstances #-}</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="kw">module</span> <span class="dt">Sub</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb1-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Map</span> <span class="kw">as</span> <span class="dt">M</span></a>
+<a class="sourceLine" id="cb1-5" data-line-number="5">  ( <span class="dt">Map</span>(<span class="fu">..</span>), empty, fromList, union, lookup</a>
+<a class="sourceLine" id="cb1-6" data-line-number="6">  , difference, fromSet, keys )</a>
+<a class="sourceLine" id="cb1-7" data-line-number="7"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Map.Merge.Lazy</span> <span class="kw">as</span> <span class="dt">M</span></a>
+<a class="sourceLine" id="cb1-8" data-line-number="8">  ( mergeA, zipWithAMatched, traverseMissing )</a>
+<a class="sourceLine" id="cb1-9" data-line-number="9"><span class="kw">import</span> <span class="dt">Data.Proxy</span></a>
+<a class="sourceLine" id="cb1-10" data-line-number="10">  ( <span class="dt">Proxy</span>(<span class="dt">Proxy</span>) )</a>
+<a class="sourceLine" id="cb1-11" data-line-number="11"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Set</span> <span class="kw">as</span> <span class="dt">S</span></a>
+<a class="sourceLine" id="cb1-12" data-line-number="12">  ( <span class="dt">Set</span>(<span class="fu">..</span>), fromList, singleton</a>
+<a class="sourceLine" id="cb1-13" data-line-number="13">  , empty, union, disjoint )</a>
+<a class="sourceLine" id="cb1-14" data-line-number="14"><span class="kw">import</span> <span class="dt">Test.QuickCheck</span></a>
+<a class="sourceLine" id="cb1-15" data-line-number="15">  ( <span class="dt">Arbitrary</span>(<span class="fu">..</span>) )</a>
+<a class="sourceLine" id="cb1-16" data-line-number="16"></a>
+<a class="sourceLine" id="cb1-17" data-line-number="17"><span class="kw">import</span> <span class="dt">Var</span></a></code></pre></div>
+<h2 id="as-mappings">As Mappings</h2>
+<p>A <em>substitution</em> over a grammar <code>t</code> is a mapping from variables over <code>t</code> to arbitrary values of type <code>t</code>; we can represent this using the standard library <code>Map</code> type.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="kw">data</span> <span class="dt">Sub</span> t</a>
+<a class="sourceLine" id="cb2-2" data-line-number="2">  <span class="fu">=</span> <span class="dt">Sub</span> (<span class="dt">M.Map</span> (<span class="dt">Var</span> t) t)</a>
+<a class="sourceLine" id="cb2-3" data-line-number="3">  <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>)</a></code></pre></div>
+<p>And for the sake of testing, here’s a representative <code>Arbitrary</code> instance for variables and substitutions over the <code>Int</code> “grammar”.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">Arbitrary</span> (<span class="dt">Var</span> <span class="dt">Int</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb3-2" data-line-number="2">  arbitrary <span class="fu">=</span> <span class="dt">Var</span> <span class="fu">&lt;$&gt;</span> arbitrary</a>
+<a class="sourceLine" id="cb3-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb3-4" data-line-number="4"><span class="kw">instance</span> <span class="dt">Arbitrary</span> (<span class="dt">Sub</span> <span class="dt">Int</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb3-5" data-line-number="5">  arbitrary <span class="fu">=</span> <span class="dt">Sub</span> <span class="fu">&lt;$&gt;</span> arbitrary</a>
+<a class="sourceLine" id="cb3-6" data-line-number="6">  shrink (<span class="dt">Sub</span> m) <span class="fu">=</span> map <span class="dt">Sub</span> <span class="fu">$</span> shrink m</a></code></pre></div>
+<p>The fundamental thing we do with substitutions is <em>apply</em> them; this has a signature like <span class="math display">\[\mathsf{Sub}\ t \times t \rightarrow t.\]</span> That is the signature of an <em>action</em>. In practice substitution should also act on itself, and should form a monoid, and the application of substitutions to arbitrary things is in fact a <em>monoid action</em>, which is saying something very nice.</p>
+<p>At this level of generality, though, we can’t express these properties in a useful way without bringing in some language extensions I prefer to avoid, like <code>MultiParamTypeClasses</code>. So we’ll save the fun properties of <code>Sub</code> for later, when we define more specific sorts of substitutions.</p>
+<p>Some other basic tools for working with <code>Sub</code>stitutions can be developed without this. First of all, over any grammar we have the empty substitution.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="ot">emptySub ::</span> <span class="dt">Sub</span> t</a>
+<a class="sourceLine" id="cb4-2" data-line-number="2">emptySub <span class="fu">=</span> <span class="dt">Sub</span> M.empty</a></code></pre></div>
+<p>We’ll also need a function that extracts the domain of a substitution – the set of variables that get moved. We can think of a substitution as implicitly defined for <em>all</em> variables, where the substitution acts like the identity for all but a finite number of them. Sometimes the set of “moved” inputs for a function like this is called its <em>support</em>.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="ot">support ::</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">S.Set</span> (<span class="dt">Var</span> t)</a>
+<a class="sourceLine" id="cb5-2" data-line-number="2">support (<span class="dt">Sub</span> m) <span class="fu">=</span> S.fromList <span class="fu">$</span> M.keys m</a></code></pre></div>
+<p>Picky readers will notice that this is not really the support of a function in the strictest sense; it includes variables that get sent to expressions consisting only of themselves, and it’s debatable whether this counts. Most of the time this doesn’t matter to us, and when it does, we’ll deal with it.</p>
+<p>Here’s a natural (if trivial) test: the support of an empty substitution should be the empty set.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1">test_support_empty_sub</a>
+<a class="sourceLine" id="cb6-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb6-3" data-line-number="3">test_support_empty_sub _ <span class="fu">=</span></a>
+<a class="sourceLine" id="cb6-4" data-line-number="4">  <span class="kw">let</span> empty <span class="fu">=</span><span class="ot"> emptySub ::</span> <span class="dt">Sub</span> t <span class="kw">in</span></a>
+<a class="sourceLine" id="cb6-5" data-line-number="5">  (support empty) <span class="fu">==</span> S.empty</a></code></pre></div>
+<p>We can also define an operator for building “singleton” substitutions whose support consists of only one variable. Normally I think it’s bad form to use symbolic operators like this, but I’m making an exception here because this code is not intended to be a library for use in larger projects.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1"><span class="ot">(--&gt;) ::</span> <span class="dt">Var</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> t</a>
+<a class="sourceLine" id="cb7-2" data-line-number="2">x <span class="fu">--&gt;</span> e <span class="fu">=</span> <span class="dt">Sub</span> <span class="fu">$</span> M.fromList [(x,e)]</a></code></pre></div>
+<p>As a test, the support of <span class="math inline">\(x \mapsto e\)</span> is the singleton set <span class="math inline">\(\{x\}\)</span>.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" data-line-number="1">test_support_singleton</a>
+<a class="sourceLine" id="cb8-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">Var</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb8-3" data-line-number="3">test_support_singleton _ x e <span class="fu">=</span></a>
+<a class="sourceLine" id="cb8-4" data-line-number="4">  (support (x <span class="fu">--&gt;</span> e)) <span class="fu">==</span> S.singleton x</a></code></pre></div>
+<p>We’ll also need a way to apply a substitution to a variable.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" data-line-number="1"><span class="ot">applySub ::</span> <span class="dt">Var</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">Maybe</span> t</a>
+<a class="sourceLine" id="cb9-2" data-line-number="2">applySub x (<span class="dt">Sub</span> m) <span class="fu">=</span> M.lookup x m</a></code></pre></div>
+<p>Lookup should always fail on the empty substitution:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" data-line-number="1">test_sub_lookup_empty</a>
+<a class="sourceLine" id="cb10-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">Var</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb10-3" data-line-number="3">test_sub_lookup_empty _ x <span class="fu">=</span></a>
+<a class="sourceLine" id="cb10-4" data-line-number="4">  <span class="dt">Nothing</span> <span class="fu">==</span> applySub x emptySub</a></code></pre></div>
+<p>We can precisely characterize what lookup does on singletons.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb11-1" data-line-number="1">test_sub_lookup_singleton</a>
+<a class="sourceLine" id="cb11-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">Var</span> t <span class="ot">-&gt;</span> <span class="dt">Var</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb11-3" data-line-number="3">test_sub_lookup_singleton _ y x e <span class="fu">=</span></a>
+<a class="sourceLine" id="cb11-4" data-line-number="4">  <span class="kw">if</span> x <span class="fu">==</span> y</a>
+<a class="sourceLine" id="cb11-5" data-line-number="5">    <span class="kw">then</span> <span class="dt">Just</span> e <span class="fu">==</span> applySub y (x <span class="fu">--&gt;</span> e)</a>
+<a class="sourceLine" id="cb11-6" data-line-number="6">    <span class="kw">else</span> <span class="dt">Nothing</span> <span class="fu">==</span> applySub y (x <span class="fu">--&gt;</span> e)</a></code></pre></div>
+<h2 id="union">Union</h2>
+<p>We’ll be interested in assembling substitutions into larger ones in a few different ways. As partial functions on the same domain, it makes sense to try to <em>union</em> substitutions together. The problem with this is that in general the set union of two functions is not a function – specifically, if they are both defined on some variable, but have different values there. So we’ll need the union operator, <code>unionSub</code>, to return a <code>Maybe</code>.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb12-1" data-line-number="1"><span class="ot">unionSub ::</span> (<span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">Sub</span> t)</a>
+<a class="sourceLine" id="cb12-2" data-line-number="2">unionSub (<span class="dt">Sub</span> m1) (<span class="dt">Sub</span> m2) <span class="fu">=</span> <span class="dt">Sub</span> <span class="fu">&lt;$&gt;</span> M.mergeA</a>
+<a class="sourceLine" id="cb12-3" data-line-number="3">  (M.traverseMissing <span class="fu">$</span> \_ x <span class="ot">-&gt;</span> <span class="dt">Just</span> x)</a>
+<a class="sourceLine" id="cb12-4" data-line-number="4">  (M.traverseMissing <span class="fu">$</span> \_ x <span class="ot">-&gt;</span> <span class="dt">Just</span> x)</a>
+<a class="sourceLine" id="cb12-5" data-line-number="5">  (M.zipWithAMatched <span class="fu">$</span> \_ x y <span class="ot">-&gt;</span> <span class="kw">if</span> x <span class="fu">==</span> y <span class="kw">then</span> <span class="dt">Just</span> x <span class="kw">else</span> <span class="dt">Nothing</span>)</a>
+<a class="sourceLine" id="cb12-6" data-line-number="6">  m1 m2</a></code></pre></div>
+<p>Here we’ve used the handy <code>mergeA</code> library function which can merge <code>Map</code>s using many different strategies. This makes it a little less clear what <code>unionSub</code> is doing, but we can check our intuition with some property tests.</p>
+<p>Now <code>emptySub</code> should act like the empty set, <code>--&gt;</code> should act like it constructs singletons, and <code>unionSub</code> should act like set union. Together these operators satisfy some intuitive properties.</p>
+<p>The empty set acts like an identity with respect to union: <span class="math display">\[\mathsf{unionSub}\ \mathsf{emptySub}\ s = s = \mathsf{unionSub}\ s\ \mathsf{emptySub}\]</span></p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb13-1" data-line-number="1">test_sub_union_identity</a>
+<a class="sourceLine" id="cb13-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb13-3" data-line-number="3">test_sub_union_identity _ s <span class="fu">=</span> and</a>
+<a class="sourceLine" id="cb13-4" data-line-number="4">  [ <span class="dt">Just</span> s <span class="fu">==</span> unionSub emptySub s</a>
+<a class="sourceLine" id="cb13-5" data-line-number="5">  , <span class="dt">Just</span> s <span class="fu">==</span> unionSub s emptySub</a>
+<a class="sourceLine" id="cb13-6" data-line-number="6">  ]</a></code></pre></div>
+<p>Union is idempotent: <span class="math display">\[\mathsf{unionSub}\ s\ s = s\]</span></p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb14-1" data-line-number="1">test_sub_union_idempotent</a>
+<a class="sourceLine" id="cb14-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb14-3" data-line-number="3">test_sub_union_idempotent _ s <span class="fu">=</span></a>
+<a class="sourceLine" id="cb14-4" data-line-number="4">  <span class="dt">Just</span> s <span class="fu">==</span> unionSub s s</a></code></pre></div>
+<p>Union is commutative: <span class="math display">\[\mathsf{unionSub}\ s_1\ s_2 = \mathsf{unionSub}\ s_2\ s_1\]</span></p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb15-1" data-line-number="1">test_sub_union_commutative</a>
+<a class="sourceLine" id="cb15-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb15-3" data-line-number="3">test_sub_union_commutative _ s1 s2 <span class="fu">=</span></a>
+<a class="sourceLine" id="cb15-4" data-line-number="4">  unionSub s1 s2 <span class="fu">==</span> unionSub s2 s1</a></code></pre></div>
+<p>Union is associative: <span class="math display">\[\mathsf{unionSub}\ s_1\ (\mathsf{unionSub}\ s_2\ s_3) = \mathsf{unionSub}\ (\mathsf{unionSub}\ s_1\ s_2)\ s_3,\]</span> where if either side is undefined, then both are. (This test is a little more complicated because we have to deal with the <code>Maybe</code> result.)</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb16-1" data-line-number="1">test_sub_union_associative</a>
+<a class="sourceLine" id="cb16-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb16-3" data-line-number="3">test_sub_union_associative _ s1 s2 s3 <span class="fu">=</span></a>
+<a class="sourceLine" id="cb16-4" data-line-number="4">  <span class="kw">let</span></a>
+<a class="sourceLine" id="cb16-5" data-line-number="5">    lhs <span class="fu">=</span> <span class="kw">do</span> { t <span class="ot">&lt;-</span> unionSub s1 s2; unionSub t s3 }</a>
+<a class="sourceLine" id="cb16-6" data-line-number="6">    rhs <span class="fu">=</span> <span class="kw">do</span> { t <span class="ot">&lt;-</span> unionSub s2 s3; unionSub s1 t }</a>
+<a class="sourceLine" id="cb16-7" data-line-number="7">  <span class="kw">in</span></a>
+<a class="sourceLine" id="cb16-8" data-line-number="8">    lhs <span class="fu">==</span> rhs</a></code></pre></div>
+<p>We can characterize the union of singletons with the same support. If <span class="math inline">\(e_1 \neq e_2\)</span>, then</p>
+<p><span class="math display">\[\mathsf{unionSub}\ (x \mapsto e_1)\ (x \mapsto e_2) = \mathsf{Nothing}\]</span></p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb17-1" data-line-number="1">test_sub_union_nothing</a>
+<a class="sourceLine" id="cb17-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">Var</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb17-3" data-line-number="3">test_sub_union_nothing _ x e1 e2 <span class="fu">=</span></a>
+<a class="sourceLine" id="cb17-4" data-line-number="4">  <span class="kw">if</span> e1 <span class="fu">/=</span> e2</a>
+<a class="sourceLine" id="cb17-5" data-line-number="5">    <span class="kw">then</span> <span class="dt">Nothing</span> <span class="fu">==</span> (unionSub (x <span class="fu">--&gt;</span> e1) (x <span class="fu">--&gt;</span> e2))</a>
+<a class="sourceLine" id="cb17-6" data-line-number="6">    <span class="kw">else</span> <span class="dt">Just</span> (x <span class="fu">--&gt;</span> e1) <span class="fu">==</span> (unionSub (x <span class="fu">--&gt;</span> e1) (x <span class="fu">--&gt;</span> e2))</a></code></pre></div>
+<p>More generally, if a union is defined then the support of the (map) union is the (set) union of supports.</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb18-1" data-line-number="1">test_sub_union_support</a>
+<a class="sourceLine" id="cb18-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb18-3" data-line-number="3">test_sub_union_support _ s1 s2 <span class="fu">=</span></a>
+<a class="sourceLine" id="cb18-4" data-line-number="4">  <span class="kw">case</span> unionSub s1 s2 <span class="kw">of</span></a>
+<a class="sourceLine" id="cb18-5" data-line-number="5">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">True</span></a>
+<a class="sourceLine" id="cb18-6" data-line-number="6">    <span class="dt">Just</span> s3 <span class="ot">-&gt;</span> support s3 <span class="fu">==</span> S.union (support s1) (support s3)</a></code></pre></div>
+<p>This last test is of lower quality than the others because the first case branch is trivial; our test suite will waste time generating test cases that provide no information. That’s not to say the test is useless. If our implementation of <code>unionSub</code> <em>fails</em> it’s definitely wrong, but just because it <em>passes</em> doesn’t mean it’s correct. This is true of all property tests, but especially so of those that essentially throw away test cases.</p>
+<h2 id="extension">Extension</h2>
+<p>Unioning substitutions is a partial operation because of what happens when two substitutions are defined but disagree on some input. Another way to deal with this problem is to simply declare that if <span class="math inline">\(S_1\)</span> and <span class="math inline">\(S_2\)</span> both substitute some variable <span class="math inline">\(x\)</span>, just ignore what <span class="math inline">\(S_2\)</span> does and let the combination of <span class="math inline">\(S_1\)</span> and <span class="math inline">\(S_2\)</span> behave as if it were just <span class="math inline">\(S_1\)</span>. We can think of this as a <em>left-biased</em> union. Maybe a better way to think of it is that we are <em>augmenting</em> <span class="math inline">\(S_1\)</span> with the additional values in <span class="math inline">\(S_2\)</span>, ignoring any that conflict with what <span class="math inline">\(S_1\)</span> already does. This operation has the advantage of being total, at the expense of silently throwing away information.</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb19-1" data-line-number="1"><span class="ot">(.&amp;) ::</span> (<span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> t</a>
+<a class="sourceLine" id="cb19-2" data-line-number="2">(<span class="fu">.&amp;</span>) (<span class="dt">Sub</span> m1) (<span class="dt">Sub</span> m2) <span class="fu">=</span> <span class="dt">Sub</span> <span class="fu">$</span> M.union m1 m2</a></code></pre></div>
+<p>This implementation uses the fact that the <code>union</code> library function for <code>Map</code>s is left-biased.</p>
+<p>Now for some properties. The empty substitution is again an identity with respect to extension: <span class="math display">\[\mathsf{emptySub}\ \mathsf{.\&amp;}\ s = s = s\ \mathsf{.\&amp;}\ \mathsf{emptySub}\]</span></p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb20-1" data-line-number="1">test_sub_extend_empty</a>
+<a class="sourceLine" id="cb20-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb20-3" data-line-number="3">test_sub_extend_empty _ s <span class="fu">=</span> and</a>
+<a class="sourceLine" id="cb20-4" data-line-number="4">  [ s <span class="fu">==</span> (emptySub <span class="fu">.&amp;</span> s)</a>
+<a class="sourceLine" id="cb20-5" data-line-number="5">  , s <span class="fu">==</span> (s <span class="fu">.&amp;</span> emptySub)</a>
+<a class="sourceLine" id="cb20-6" data-line-number="6">  ]</a></code></pre></div>
+<p>Extension is idempotent: <span class="math display">\[s\ \mathsf{.\&amp;}\ s = s\]</span></p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb21-1" data-line-number="1">test_sub_extend_idempotent</a>
+<a class="sourceLine" id="cb21-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb21-3" data-line-number="3">test_sub_extend_idempotent _ s <span class="fu">=</span></a>
+<a class="sourceLine" id="cb21-4" data-line-number="4">  s <span class="fu">==</span> (s <span class="fu">.&amp;</span> s)</a></code></pre></div>
+<p>Extension on singletons with the same variable is a left-zero operation: <span class="math display">\[(x \mapsto e_1)\ \mathsf{.\&amp;}\ (x \mapsto e_2) = (x \mapsto e_1)\]</span></p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb22-1" data-line-number="1">test_sub_extend_singleton</a>
+<a class="sourceLine" id="cb22-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">Var</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb22-3" data-line-number="3">test_sub_extend_singleton _ x e1 e2 <span class="fu">=</span></a>
+<a class="sourceLine" id="cb22-4" data-line-number="4">  (x <span class="fu">--&gt;</span> e1) <span class="fu">==</span> (x <span class="fu">--&gt;</span> e1) <span class="fu">.&amp;</span> (x <span class="fu">--&gt;</span> e2)</a></code></pre></div>
+<p>And extension is associative: <span class="math display">\[s_1\ \mathsf{.\&amp;}\ (s_2\ \mathsf{.\&amp;}\ s_3) = (s_1\ \mathsf{.\&amp;}\ s_2)\ \mathsf{.\&amp;}\ s_3\]</span></p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb23-1" data-line-number="1">test_sub_extend_associative</a>
+<a class="sourceLine" id="cb23-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb23-3" data-line-number="3">test_sub_extend_associative _ s1 s2 s3 <span class="fu">=</span></a>
+<a class="sourceLine" id="cb23-4" data-line-number="4">  s1 <span class="fu">.&amp;</span> (s2 <span class="fu">.&amp;</span> s3) <span class="fu">==</span> (s1 <span class="fu">.&amp;</span> s2) <span class="fu">.&amp;</span> s3</a></code></pre></div>
+<p>Finally, the support of an extension is the union of supports. Compare this to the analogous property for <code>unionSub</code>.</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb24-1" data-line-number="1">test_sub_extend_support</a>
+<a class="sourceLine" id="cb24-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb24-3" data-line-number="3">test_sub_extend_support _ s1 s2 <span class="fu">=</span></a>
+<a class="sourceLine" id="cb24-4" data-line-number="4">  support (s1 <span class="fu">.&amp;</span> s2) <span class="fu">==</span> S.union (support s1) (support s2)</a></code></pre></div>
+<h2 id="restriction">Restriction</h2>
+<p>One more operation on substitutions will come in handy: <em>restriction</em>. This will “undefine” a substitution on some set of variables; it’s sort of the inverse of extension.</p>
+<div class="sourceCode" id="cb25"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb25-1" data-line-number="1"><span class="ot">(&lt;/) ::</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">S.Set</span> (<span class="dt">Var</span> t) <span class="ot">-&gt;</span> <span class="dt">Sub</span> t</a>
+<a class="sourceLine" id="cb25-2" data-line-number="2">(<span class="dt">Sub</span> s) <span class="fu">&lt;/</span> as <span class="fu">=</span></a>
+<a class="sourceLine" id="cb25-3" data-line-number="3">  <span class="dt">Sub</span> <span class="fu">$</span> M.difference s (M.fromSet (const ()) as)</a></code></pre></div>
+<p>The signature for <code>&lt;/</code> is that of a right action – in this case, the set of sets of variables over <code>t</code> acting on the set of substitutions over <code>t</code>. The type <code>S.Set (Var t)</code> has some structure of its own; in particular, it’s a monoid under (set) union. A natural question is then whether <code>&lt;/</code> is a <em>monoid</em> action – and indeed it is.</p>
+<p>Remember that a <em>monoid</em> is a set <span class="math inline">\(M\)</span> with an associative binary operation <span class="math inline">\(\cdot\)</span> and an identity element <span class="math inline">\(e\)</span>; that is, for all <span class="math inline">\(a\)</span>, <span class="math inline">\(b\)</span>, and <span class="math inline">\(c\)</span> in <span class="math inline">\(M\)</span> we have <span class="math inline">\(a \cdot (b \cdot c) = (a \cdot b) \cdot c\)</span> and <span class="math inline">\(a \cdot e = a = e \cdot a\)</span>. If we have another operation <span class="math inline">\(\ast\)</span> with signature <span class="math inline">\(A \times M \rightarrow A\)</span>, then this is a <em>monoid action</em> of <span class="math inline">\(M\)</span> on <span class="math inline">\(A\)</span> if we have <span class="math inline">\(u \ast e = u\)</span> and <span class="math inline">\((u \ast a) \ast b = u \ast (a \cdot b)\)</span> for all <span class="math inline">\(u \in A\)</span> and <span class="math inline">\(a,b \in M\)</span>. These properties are very special, and easy to test for.</p>
+<div class="sourceCode" id="cb26"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb26-1" data-line-number="1">test_undefine_identity</a>
+<a class="sourceLine" id="cb26-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb26-3" data-line-number="3">test_undefine_identity _ s <span class="fu">=</span></a>
+<a class="sourceLine" id="cb26-4" data-line-number="4">  s <span class="fu">==</span> (s <span class="fu">&lt;/</span> S.empty)</a>
+<a class="sourceLine" id="cb26-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb26-6" data-line-number="6">test_undefine_action</a>
+<a class="sourceLine" id="cb26-7" data-line-number="7"><span class="ot">  ::</span> (<span class="dt">Eq</span> t)</a>
+<a class="sourceLine" id="cb26-8" data-line-number="8">  <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> t <span class="ot">-&gt;</span> <span class="dt">S.Set</span> (<span class="dt">Var</span> t) <span class="ot">-&gt;</span> <span class="dt">S.Set</span> (<span class="dt">Var</span> t) <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb26-9" data-line-number="9">test_undefine_action _ s as bs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb26-10" data-line-number="10">  ((s <span class="fu">&lt;/</span> as) <span class="fu">&lt;/</span> bs) <span class="fu">==</span> (s <span class="fu">&lt;/</span> (as <span class="fu">&lt;&gt;</span> bs))</a></code></pre></div>
+<p>This is just the first of several monoid actions we’ll see.</p>
+<p>Finally, we can characterize undefine on a singleton substitution.</p>
+<div class="sourceCode" id="cb27"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb27-1" data-line-number="1">test_undefine_singleton</a>
+<a class="sourceLine" id="cb27-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">Var</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb27-3" data-line-number="3">test_undefine_singleton _ x e <span class="fu">=</span></a>
+<a class="sourceLine" id="cb27-4" data-line-number="4">  emptySub <span class="fu">==</span> (x <span class="fu">--&gt;</span> e) <span class="fu">&lt;/</span> (S.singleton x)</a></code></pre></div>
+<p>In the next section we’ll develop the grammar of lambda calculus with let bindings.</p>
+</body>
+</html>

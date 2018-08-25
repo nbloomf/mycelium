@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Infer</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+  <style type="text/css">
+a.sourceLine { display: inline-block; line-height: 1.25; }
+a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
+a.sourceLine:empty { height: 1.2em; position: absolute; }
+.sourceCode { overflow: visible; }
+code.sourceCode { white-space: pre; position: relative; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+code.sourceCode { white-space: pre-wrap; }
+a.sourceLine { text-indent: -1em; padding-left: 1em; }
+}
+pre.numberSource a.sourceLine
+  { position: relative; }
+pre.numberSource a.sourceLine:empty
+  { position: absolute; }
+pre.numberSource a.sourceLine::before
+  { content: attr(data-line-number);
+    position: absolute; left: -5em; text-align: right; vertical-align: baseline;
+    border: none; pointer-events: all;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {  }
+@media screen {
+a.sourceLine::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS_CHTML-full" type="text/javascript"></script>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<header>
+<h1 class="title">Infer</h1>
+</header>
+<p>We’re now prepared to infer the most general type of a lambda expression.</p>
+<p>For instance, the expression <span class="math display">\[\lambda\ x\ . x\]</span> accepts a value of any type, and just returns the value. It’s reasonable to say it should have type <span class="math display">\[\forall \alpha\ .\ \alpha \rightarrow \alpha.\]</span></p>
+<p>We will implement an algorithm that can automatically determine the type of an expression, or determine that the expression cannot be typed for one of a small number of reasons.</p>
+<p>As usual we start with module imports.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ot">{-# LANGUAGE LambdaCase #-}</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="kw">module</span> <span class="dt">Infer</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb1-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="kw">import</span> <span class="dt">Control.Monad</span></a>
+<a class="sourceLine" id="cb1-5" data-line-number="5">  ( ap, foldM )</a>
+<a class="sourceLine" id="cb1-6" data-line-number="6"><span class="kw">import</span> <span class="dt">Data.Either</span></a>
+<a class="sourceLine" id="cb1-7" data-line-number="7">  ( rights, lefts )</a>
+<a class="sourceLine" id="cb1-8" data-line-number="8"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Map</span> <span class="kw">as</span> <span class="dt">M</span></a>
+<a class="sourceLine" id="cb1-9" data-line-number="9">  ( <span class="dt">Map</span>(<span class="fu">..</span>), fromSet, lookup, keys, fromList</a>
+<a class="sourceLine" id="cb1-10" data-line-number="10">  , insert, empty, map, elems, delete, toAscList )</a>
+<a class="sourceLine" id="cb1-11" data-line-number="11"><span class="kw">import</span> <span class="dt">Data.Proxy</span></a>
+<a class="sourceLine" id="cb1-12" data-line-number="12">  ( <span class="dt">Proxy</span>(<span class="fu">..</span>) )</a>
+<a class="sourceLine" id="cb1-13" data-line-number="13"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Set</span> <span class="kw">as</span> <span class="dt">S</span></a>
+<a class="sourceLine" id="cb1-14" data-line-number="14">  ( <span class="dt">Set</span>(<span class="fu">..</span>), empty, fromList, difference</a>
+<a class="sourceLine" id="cb1-15" data-line-number="15">  , unions, singleton, union )</a>
+<a class="sourceLine" id="cb1-16" data-line-number="16"><span class="kw">import</span> <span class="dt">Test.QuickCheck</span></a>
+<a class="sourceLine" id="cb1-17" data-line-number="17">  ( <span class="dt">Arbitrary</span>(<span class="fu">..</span>), <span class="dt">Property</span>, <span class="dt">Gen</span>, forAll</a>
+<a class="sourceLine" id="cb1-18" data-line-number="18">  , elements, getSize )</a>
+<a class="sourceLine" id="cb1-19" data-line-number="19"></a>
+<a class="sourceLine" id="cb1-20" data-line-number="20"><span class="kw">import</span> <span class="dt">Var</span></a>
+<a class="sourceLine" id="cb1-21" data-line-number="21"><span class="kw">import</span> <span class="dt">Expr</span></a>
+<a class="sourceLine" id="cb1-22" data-line-number="22"><span class="kw">import</span> <span class="dt">Sub</span></a>
+<a class="sourceLine" id="cb1-23" data-line-number="23"><span class="kw">import</span> <span class="dt">Type</span></a></code></pre></div>
+<h2 id="type-environments">Type Environments</h2>
+<p>Type inference will only make sense in the context of an <em>environment</em> in which some constants and free expression variables have been assigned types.</p>
+<p>A <em>type environment</em> is a mapping from expression constants and variables to polytypes. We can think of an environment as a context within which some constants and variables have already been assigned types.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="kw">data</span> <span class="dt">TypeEnv</span> <span class="fu">=</span></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2">  <span class="dt">TypeEnv</span> (<span class="dt">M.Map</span> (<span class="dt">Either</span> (<span class="dt">Con</span> <span class="dt">Expr</span>) (<span class="dt">Var</span> <span class="dt">Expr</span>)) <span class="dt">PolyType</span>)</a>
+<a class="sourceLine" id="cb2-3" data-line-number="3">  <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>)</a>
+<a class="sourceLine" id="cb2-4" data-line-number="4"></a>
+<a class="sourceLine" id="cb2-5" data-line-number="5"><span class="kw">instance</span> <span class="dt">Arbitrary</span> <span class="dt">TypeEnv</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb2-6" data-line-number="6">  arbitrary <span class="fu">=</span> <span class="dt">TypeEnv</span> <span class="fu">&lt;$&gt;</span> arbitrary</a>
+<a class="sourceLine" id="cb2-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb2-8" data-line-number="8">  shrink (<span class="dt">TypeEnv</span> m) <span class="fu">=</span> map <span class="dt">TypeEnv</span> <span class="fu">$</span> shrink m</a></code></pre></div>
+<p>A variable is free in a type environment if it is free in some image.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">FreeTypeVars</span> <span class="dt">TypeEnv</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb3-2" data-line-number="2">  freeTypeVars (<span class="dt">TypeEnv</span> m) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb3-3" data-line-number="3">    S.unions <span class="fu">$</span> map freeTypeVars <span class="fu">$</span> M.elems m</a></code></pre></div>
+<p>And we can apply a monotype substitution to a type environment “pointwise”.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">SubMono</span> <span class="dt">TypeEnv</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb4-2" data-line-number="2">  s <span class="fu">$.</span> (<span class="dt">TypeEnv</span> m) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb4-3" data-line-number="3">    <span class="dt">TypeEnv</span> <span class="fu">$</span> M.map (s <span class="fu">$.</span>) m</a></code></pre></div>
+<p>We can also unify type environments; in practice this is used just for testing.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">UnifyTypes</span> <span class="dt">TypeEnv</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb5-2" data-line-number="2">  unifyTypes (<span class="dt">TypeEnv</span> m1) (<span class="dt">TypeEnv</span> m2) <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb5-3" data-line-number="3">    <span class="kw">let</span></a>
+<a class="sourceLine" id="cb5-4" data-line-number="4">      as1 <span class="fu">=</span> M.toAscList m1</a>
+<a class="sourceLine" id="cb5-5" data-line-number="5">      as2 <span class="fu">=</span> M.toAscList m2</a>
+<a class="sourceLine" id="cb5-6" data-line-number="6"></a>
+<a class="sourceLine" id="cb5-7" data-line-number="7">      unify (x1,t1) (x2,t2) <span class="fu">=</span> <span class="kw">if</span> x1 <span class="fu">==</span> x2</a>
+<a class="sourceLine" id="cb5-8" data-line-number="8">        <span class="kw">then</span> unifyTypes t1 t2</a>
+<a class="sourceLine" id="cb5-9" data-line-number="9">        <span class="kw">else</span> <span class="dt">Left</span> <span class="fu">$</span> <span class="dt">IncompatibleSub</span></a>
+<a class="sourceLine" id="cb5-10" data-line-number="10"></a>
+<a class="sourceLine" id="cb5-11" data-line-number="11">      zipL <span class="fu">=</span> \<span class="kw">case</span></a>
+<a class="sourceLine" id="cb5-12" data-line-number="12">        (y<span class="fu">:</span>ys,z<span class="fu">:</span>zs) <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb5-13" data-line-number="13">          u <span class="ot">&lt;-</span> unify y z</a>
+<a class="sourceLine" id="cb5-14" data-line-number="14">          (u<span class="fu">:</span>) <span class="fu">&lt;$&gt;</span> zipL (ys,zs)</a>
+<a class="sourceLine" id="cb5-15" data-line-number="15">        ([],[]) <span class="ot">-&gt;</span> return []</a>
+<a class="sourceLine" id="cb5-16" data-line-number="16">        _ <span class="ot">-&gt;</span> <span class="dt">Left</span> <span class="fu">$</span> <span class="dt">IncompatibleSub</span></a>
+<a class="sourceLine" id="cb5-17" data-line-number="17"></a>
+<a class="sourceLine" id="cb5-18" data-line-number="18">    us <span class="ot">&lt;-</span> zipL (as1,as2)</a>
+<a class="sourceLine" id="cb5-19" data-line-number="19">    return <span class="fu">$</span> mconcat us</a></code></pre></div>
+<p>Inference will start out with an empty type environment and be extended or restricted one definition at a time.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1"><span class="ot">emptyTypeEnv ::</span> <span class="dt">TypeEnv</span></a>
+<a class="sourceLine" id="cb6-2" data-line-number="2">emptyTypeEnv <span class="fu">=</span> <span class="dt">TypeEnv</span> M.empty</a>
+<a class="sourceLine" id="cb6-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb6-4" data-line-number="4"><span class="ot">setTypeOfVar ::</span> <span class="dt">TypeEnv</span> <span class="ot">-&gt;</span> (<span class="dt">Var</span> <span class="dt">Expr</span>, <span class="dt">PolyType</span>) <span class="ot">-&gt;</span> <span class="dt">TypeEnv</span></a>
+<a class="sourceLine" id="cb6-5" data-line-number="5">setTypeOfVar (<span class="dt">TypeEnv</span> env) (var, polytype) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb6-6" data-line-number="6">  <span class="dt">TypeEnv</span> <span class="fu">$</span> M.insert (<span class="dt">Right</span> var) polytype env</a>
+<a class="sourceLine" id="cb6-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb6-8" data-line-number="8"><span class="ot">removeTypeOfVar ::</span> <span class="dt">Var</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">TypeEnv</span> <span class="ot">-&gt;</span> <span class="dt">TypeEnv</span></a>
+<a class="sourceLine" id="cb6-9" data-line-number="9">removeTypeOfVar x (<span class="dt">TypeEnv</span> m) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb6-10" data-line-number="10">  <span class="dt">TypeEnv</span> <span class="fu">$</span> M.delete (<span class="dt">Right</span> x) m</a>
+<a class="sourceLine" id="cb6-11" data-line-number="11"></a>
+<a class="sourceLine" id="cb6-12" data-line-number="12"><span class="ot">setTypeOfCon ::</span> <span class="dt">TypeEnv</span> <span class="ot">-&gt;</span> (<span class="dt">Con</span> <span class="dt">Expr</span>, <span class="dt">PolyType</span>) <span class="ot">-&gt;</span> <span class="dt">TypeEnv</span></a>
+<a class="sourceLine" id="cb6-13" data-line-number="13">setTypeOfCon (<span class="dt">TypeEnv</span> env) (con, polytype) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb6-14" data-line-number="14">  <span class="dt">TypeEnv</span> <span class="fu">$</span> M.insert (<span class="dt">Left</span> con) polytype env</a></code></pre></div>
+<p>We’ll also need to extract the sets of defined variables in a type environment.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1"><span class="ot">typedVarsIn ::</span> <span class="dt">TypeEnv</span> <span class="ot">-&gt;</span> <span class="dt">S.Set</span> (<span class="dt">Var</span> <span class="dt">Expr</span>)</a>
+<a class="sourceLine" id="cb7-2" data-line-number="2">typedVarsIn (<span class="dt">TypeEnv</span> env) <span class="fu">=</span> S.fromList <span class="fu">$</span> rights <span class="fu">$</span> M.keys env</a></code></pre></div>
+<h2 id="the-infer-monad">The Infer Monad</h2>
+<p>Inference will happen in a basic monad stack with error and state; error for signaling why an expression fails to typecheck, and state for maintaining a source of fresh type variables.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" data-line-number="1"><span class="kw">data</span> <span class="dt">Infer</span> a <span class="fu">=</span> <span class="dt">Infer</span></a>
+<a class="sourceLine" id="cb8-2" data-line-number="2">  { runInfer</a>
+<a class="sourceLine" id="cb8-3" data-line-number="3"><span class="ot">      ::</span> <span class="dt">Integer</span></a>
+<a class="sourceLine" id="cb8-4" data-line-number="4">      <span class="ot">-&gt;</span> <span class="dt">Either</span></a>
+<a class="sourceLine" id="cb8-5" data-line-number="5">        (<span class="dt">Either</span> <span class="dt">UnificationError</span> <span class="dt">TypeError</span>)</a>
+<a class="sourceLine" id="cb8-6" data-line-number="6">        (a, <span class="dt">Integer</span>)</a>
+<a class="sourceLine" id="cb8-7" data-line-number="7">  }</a></code></pre></div>
+<p>Type inference can fail for one of three reasons: (1) we encounter a constant or variable that is not assigned a type in the environment, (2) two expressions which should have the same type, don’t, and (3) two types that should unify, don’t.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" data-line-number="1"><span class="kw">data</span> <span class="dt">TypeError</span></a>
+<a class="sourceLine" id="cb9-2" data-line-number="2">  <span class="fu">=</span> <span class="dt">UnknownVariable</span> <span class="dt">Loc</span> (<span class="dt">Var</span> <span class="dt">Expr</span>)</a>
+<a class="sourceLine" id="cb9-3" data-line-number="3">  <span class="fu">|</span> <span class="dt">UnknownConstant</span> <span class="dt">Loc</span> (<span class="dt">Con</span> <span class="dt">Expr</span>)</a>
+<a class="sourceLine" id="cb9-4" data-line-number="4">  <span class="fu">|</span> <span class="dt">TypeMismatch</span> <span class="dt">Expr</span> <span class="dt">MonoType</span> <span class="dt">Expr</span> <span class="dt">MonoType</span></a>
+<a class="sourceLine" id="cb9-5" data-line-number="5">  <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>)</a></code></pre></div>
+<p>The monad instance for <code>Infer</code> is standard stuff. We could use a monad transformer library for this but I don’t want to.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">Monad</span> <span class="dt">Infer</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb10-2" data-line-number="2">  return a <span class="fu">=</span> <span class="dt">Infer</span> <span class="fu">$</span> \k <span class="ot">-&gt;</span> <span class="dt">Right</span> (a, k)</a>
+<a class="sourceLine" id="cb10-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb10-4" data-line-number="4">  x <span class="fu">&gt;&gt;=</span> f <span class="fu">=</span> <span class="dt">Infer</span> <span class="fu">$</span> \k1 <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb10-5" data-line-number="5">    <span class="kw">case</span> runInfer x k1 <span class="kw">of</span></a>
+<a class="sourceLine" id="cb10-6" data-line-number="6">      <span class="dt">Left</span> err <span class="ot">-&gt;</span> <span class="dt">Left</span> err</a>
+<a class="sourceLine" id="cb10-7" data-line-number="7">      <span class="dt">Right</span> (a,k2) <span class="ot">-&gt;</span> runInfer (f a) k2</a>
+<a class="sourceLine" id="cb10-8" data-line-number="8"></a>
+<a class="sourceLine" id="cb10-9" data-line-number="9"><span class="kw">instance</span> <span class="dt">Applicative</span> <span class="dt">Infer</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb10-10" data-line-number="10">  pure <span class="fu">=</span> return</a>
+<a class="sourceLine" id="cb10-11" data-line-number="11">  (<span class="fu">&lt;*&gt;</span>) <span class="fu">=</span> ap</a>
+<a class="sourceLine" id="cb10-12" data-line-number="12"></a>
+<a class="sourceLine" id="cb10-13" data-line-number="13"><span class="kw">instance</span> <span class="dt">Functor</span> <span class="dt">Infer</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb10-14" data-line-number="14">  fmap f x <span class="fu">=</span> x <span class="fu">&gt;&gt;=</span> (return <span class="fu">.</span> f)</a></code></pre></div>
+<p>We need utilities for throwing errors:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb11-1" data-line-number="1"><span class="ot">throwT ::</span> <span class="dt">TypeError</span> <span class="ot">-&gt;</span> <span class="dt">Infer</span> a</a>
+<a class="sourceLine" id="cb11-2" data-line-number="2">throwT err <span class="fu">=</span> <span class="dt">Infer</span> <span class="fu">$</span> \_ <span class="ot">-&gt;</span> <span class="dt">Left</span> (<span class="dt">Right</span> err)</a>
+<a class="sourceLine" id="cb11-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb11-4" data-line-number="4"><span class="ot">throwU ::</span> <span class="dt">UnificationError</span> <span class="ot">-&gt;</span> <span class="dt">Infer</span> a</a>
+<a class="sourceLine" id="cb11-5" data-line-number="5">throwU err <span class="fu">=</span> <span class="dt">Infer</span> <span class="fu">$</span> \_ <span class="ot">-&gt;</span> <span class="dt">Left</span> (<span class="dt">Left</span> err)</a></code></pre></div>
+<p>And utilities for looking up the value of a variable or constant in the type environment.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb12-1" data-line-number="1"><span class="ot">lookupEnvVar ::</span> <span class="dt">Loc</span> <span class="ot">-&gt;</span> <span class="dt">TypeEnv</span> <span class="ot">-&gt;</span> <span class="dt">Var</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">Infer</span> <span class="dt">PolyType</span></a>
+<a class="sourceLine" id="cb12-2" data-line-number="2">lookupEnvVar loc (<span class="dt">TypeEnv</span> m) x <span class="fu">=</span> <span class="kw">case</span> M.lookup (<span class="dt">Right</span> x) m <span class="kw">of</span></a>
+<a class="sourceLine" id="cb12-3" data-line-number="3">  <span class="dt">Nothing</span> <span class="ot">-&gt;</span> throwT <span class="fu">$</span> <span class="dt">UnknownVariable</span> loc x</a>
+<a class="sourceLine" id="cb12-4" data-line-number="4">  <span class="dt">Just</span> e  <span class="ot">-&gt;</span> return e</a>
+<a class="sourceLine" id="cb12-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb12-6" data-line-number="6"><span class="ot">lookupEnvCon ::</span> <span class="dt">Loc</span> <span class="ot">-&gt;</span> <span class="dt">TypeEnv</span> <span class="ot">-&gt;</span> <span class="dt">Con</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">Infer</span> <span class="dt">PolyType</span></a>
+<a class="sourceLine" id="cb12-7" data-line-number="7">lookupEnvCon loc (<span class="dt">TypeEnv</span> m) c <span class="fu">=</span> <span class="kw">case</span> M.lookup (<span class="dt">Left</span> c) m <span class="kw">of</span></a>
+<a class="sourceLine" id="cb12-8" data-line-number="8">  <span class="dt">Nothing</span> <span class="ot">-&gt;</span> throwT <span class="fu">$</span> <span class="dt">UnknownConstant</span> loc c</a>
+<a class="sourceLine" id="cb12-9" data-line-number="9">  <span class="dt">Just</span> e  <span class="ot">-&gt;</span> return e</a></code></pre></div>
+<p>We need a utility for generating a fresh type variable.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb13-1" data-line-number="1"><span class="ot">freshTypeVar ::</span> <span class="dt">Infer</span> <span class="dt">MonoType</span></a>
+<a class="sourceLine" id="cb13-2" data-line-number="2">freshTypeVar <span class="fu">=</span> <span class="dt">Infer</span> <span class="fu">$</span> \k <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb13-3" data-line-number="3">  <span class="dt">Right</span> (<span class="dt">TVar</span> <span class="dt">Q</span> <span class="fu">$</span> <span class="dt">Var</span> <span class="fu">$</span> <span class="ch">&#39;w&#39;</span> <span class="fu">:</span> show k, k<span class="fu">+</span><span class="dv">1</span>)</a></code></pre></div>
+<p>Finally, we’ll use a helper for running computations in <code>Infer</code> for convenience.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb14-1" data-line-number="1">execInfer</a>
+<a class="sourceLine" id="cb14-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">Infer</span> a</a>
+<a class="sourceLine" id="cb14-3" data-line-number="3">  <span class="ot">-&gt;</span> <span class="dt">Either</span> (<span class="dt">Either</span> <span class="dt">UnificationError</span> <span class="dt">TypeError</span>) a</a>
+<a class="sourceLine" id="cb14-4" data-line-number="4">execInfer x <span class="fu">=</span> <span class="kw">case</span> runInfer x <span class="dv">0</span> <span class="kw">of</span></a>
+<a class="sourceLine" id="cb14-5" data-line-number="5">  <span class="dt">Right</span> (a,_) <span class="ot">-&gt;</span> <span class="dt">Right</span> a</a>
+<a class="sourceLine" id="cb14-6" data-line-number="6">  <span class="dt">Left</span> err <span class="ot">-&gt;</span> <span class="dt">Left</span> err</a></code></pre></div>
+<h2 id="inference">Inference</h2>
+<p>Almost there! We need two more utility functions on types before we can implement the inference algorithm, which are sort of opposites of each other. Remember that we have two different kinds of types: monotypes and polytypes.</p>
+<p>A monotype can be <em>generalized</em> by explicitly quantifying any of its variables that are not free in a given environment.</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb15-1" data-line-number="1"><span class="ot">generalize ::</span> <span class="dt">TypeEnv</span> <span class="ot">-&gt;</span> <span class="dt">MonoType</span> <span class="ot">-&gt;</span> <span class="dt">PolyType</span></a>
+<a class="sourceLine" id="cb15-2" data-line-number="2">generalize env tau <span class="fu">=</span> <span class="dt">ForAll</span> as tau</a>
+<a class="sourceLine" id="cb15-3" data-line-number="3">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb15-4" data-line-number="4">    as <span class="fu">=</span> S.difference (freeTypeVars tau) (freeTypeVars env)</a></code></pre></div>
+<p>And a polytype can be <em>instantiated</em> by replacing its bound variables with fresh type variable names.</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb16-1" data-line-number="1"><span class="ot">instantiate ::</span> <span class="dt">PolyType</span> <span class="ot">-&gt;</span> <span class="dt">Infer</span> <span class="dt">MonoType</span></a>
+<a class="sourceLine" id="cb16-2" data-line-number="2">instantiate (<span class="dt">ForAll</span> as t) <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb16-3" data-line-number="3">  sub <span class="ot">&lt;-</span> freshen as</a>
+<a class="sourceLine" id="cb16-4" data-line-number="4">  return (sub <span class="fu">$.</span> t)</a>
+<a class="sourceLine" id="cb16-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb16-6" data-line-number="6">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb16-7" data-line-number="7"><span class="ot">    freshen ::</span> <span class="dt">S.Set</span> (<span class="dt">Var</span> <span class="dt">MonoType</span>) <span class="ot">-&gt;</span> <span class="dt">Infer</span> (<span class="dt">Sub</span> <span class="dt">MonoType</span>)</a>
+<a class="sourceLine" id="cb16-8" data-line-number="8">    freshen xs <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb16-9" data-line-number="9">       m <span class="ot">&lt;-</span> sequence <span class="fu">$</span> M.fromSet (const freshTypeVar) xs</a>
+<a class="sourceLine" id="cb16-10" data-line-number="10">       return (<span class="dt">Sub</span> m)</a></code></pre></div>
+<p>Now we can infer the type of an expression. The <code>infer</code> function takes a type environment and an expression, and if it succeeds, returns a monotype and a type substitution to be applied to the environment.</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb17-1" data-line-number="1"><span class="ot">infer ::</span> <span class="dt">TypeEnv</span> <span class="ot">-&gt;</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">Infer</span> (<span class="dt">Sub</span> <span class="dt">MonoType</span>, <span class="dt">MonoType</span>)</a>
+<a class="sourceLine" id="cb17-2" data-line-number="2">infer env <span class="fu">=</span> \<span class="kw">case</span></a>
+<a class="sourceLine" id="cb17-3" data-line-number="3">  <span class="dt">ECon</span> loc c <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb17-4" data-line-number="4">    tau <span class="ot">&lt;-</span> lookupEnvCon loc env c <span class="fu">&gt;&gt;=</span> instantiate</a>
+<a class="sourceLine" id="cb17-5" data-line-number="5">    return (mempty, tau)</a>
+<a class="sourceLine" id="cb17-6" data-line-number="6"></a>
+<a class="sourceLine" id="cb17-7" data-line-number="7">  <span class="dt">EVar</span> loc x <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb17-8" data-line-number="8">    tau <span class="ot">&lt;-</span> lookupEnvVar loc env x <span class="fu">&gt;&gt;=</span> instantiate</a>
+<a class="sourceLine" id="cb17-9" data-line-number="9">    return (mempty, tau)</a></code></pre></div>
+<p>Inferring types for constants and variables is similar; we try to look them up in the type environment and instantiate. In both cases the substitution is empty.</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb18-1" data-line-number="1">  <span class="dt">ELam</span> loc x e <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb18-2" data-line-number="2">    tau <span class="ot">&lt;-</span> freshTypeVar</a>
+<a class="sourceLine" id="cb18-3" data-line-number="3">    <span class="kw">let</span></a>
+<a class="sourceLine" id="cb18-4" data-line-number="4">      sigma <span class="fu">=</span> <span class="dt">ForAll</span> S.empty tau</a>
+<a class="sourceLine" id="cb18-5" data-line-number="5">      env&#39; <span class="fu">=</span> setTypeOfVar env (x, sigma)</a>
+<a class="sourceLine" id="cb18-6" data-line-number="6">    (s, tau&#39;) <span class="ot">&lt;-</span> infer env&#39; e</a>
+<a class="sourceLine" id="cb18-7" data-line-number="7">    return (s, <span class="dt">TArr</span> loc (s <span class="fu">$.</span> tau) tau&#39;)</a></code></pre></div>
+<p>To infer the type of a lambda expression, we introduce a fresh type variable for the dummy variable and add it to the type environment. We then infer the type of the subexpression, with the newly typed dummy variable.</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb19-1" data-line-number="1">  <span class="dt">ELet</span> _ x e1 e2 <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb19-2" data-line-number="2">    (s1, tau) <span class="ot">&lt;-</span> infer env e1</a>
+<a class="sourceLine" id="cb19-3" data-line-number="3">    <span class="kw">let</span></a>
+<a class="sourceLine" id="cb19-4" data-line-number="4">      env&#39; <span class="fu">=</span> s1 <span class="fu">$.</span> env</a>
+<a class="sourceLine" id="cb19-5" data-line-number="5">      sigma <span class="fu">=</span> generalize env&#39; tau</a>
+<a class="sourceLine" id="cb19-6" data-line-number="6">      env&#39;&#39; <span class="fu">=</span> setTypeOfVar env&#39; (x, sigma)</a>
+<a class="sourceLine" id="cb19-7" data-line-number="7">    (s2, tau&#39;) <span class="ot">&lt;-</span> infer env&#39;&#39; e2</a>
+<a class="sourceLine" id="cb19-8" data-line-number="8">    return (s2 <span class="fu">&lt;&gt;</span> s1, tau&#39;)</a></code></pre></div>
+<p>For a let expression, we first infer the type of the let bound expression in the initial environment. We generalize this type and extend the type environment at the dummy variable.</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb20-1" data-line-number="1">  <span class="dt">EApp</span> loc f x <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb20-2" data-line-number="2">    (s1, fTau) <span class="ot">&lt;-</span> infer env f</a>
+<a class="sourceLine" id="cb20-3" data-line-number="3">    (s2, xTau) <span class="ot">&lt;-</span> infer (s1 <span class="fu">$.</span> env) x</a>
+<a class="sourceLine" id="cb20-4" data-line-number="4">    fxTau <span class="ot">&lt;-</span> freshTypeVar</a>
+<a class="sourceLine" id="cb20-5" data-line-number="5">    <span class="kw">case</span> unifyTypes (s2 <span class="fu">$.</span> fTau) (<span class="dt">TArr</span> loc xTau fxTau) <span class="kw">of</span></a>
+<a class="sourceLine" id="cb20-6" data-line-number="6">      <span class="dt">Left</span> err <span class="ot">-&gt;</span> throwU err</a>
+<a class="sourceLine" id="cb20-7" data-line-number="7">      <span class="dt">Right</span> s3 <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb20-8" data-line-number="8">        return (s3 <span class="fu">&lt;&gt;</span> s2 <span class="fu">&lt;&gt;</span> s1, s3 <span class="fu">$.</span> fxTau)</a></code></pre></div>
+<p>Given an application expression, we essentially infer the types of each branch and unify.</p>
+<p>This is a good time for some test cases.</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb21-1" data-line-number="1"><span class="ot">test_cases_infer ::</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb21-2" data-line-number="2">test_cases_infer <span class="fu">=</span> </a>
+<a class="sourceLine" id="cb21-3" data-line-number="3">  <span class="kw">let</span></a>
+<a class="sourceLine" id="cb21-4" data-line-number="4">    check e t <span class="fu">=</span></a>
+<a class="sourceLine" id="cb21-5" data-line-number="5">      <span class="kw">case</span> execInfer (infer emptyTypeEnv e) <span class="kw">of</span></a>
+<a class="sourceLine" id="cb21-6" data-line-number="6">        <span class="dt">Left</span> _ <span class="ot">-&gt;</span> <span class="dt">False</span></a>
+<a class="sourceLine" id="cb21-7" data-line-number="7">        <span class="dt">Right</span> (_,u) <span class="ot">-&gt;</span> (<span class="fu">==</span>)</a>
+<a class="sourceLine" id="cb21-8" data-line-number="8">          (generalize emptyTypeEnv t)</a>
+<a class="sourceLine" id="cb21-9" data-line-number="9">          (generalize emptyTypeEnv u)</a>
+<a class="sourceLine" id="cb21-10" data-line-number="10">  <span class="kw">in</span> and</a>
+<a class="sourceLine" id="cb21-11" data-line-number="11">    [ check</a>
+<a class="sourceLine" id="cb21-12" data-line-number="12">        (<span class="dt">ELam</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)))</a>
+<a class="sourceLine" id="cb21-13" data-line-number="13">        (<span class="dt">TArr</span> <span class="dt">Q</span> (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;a&quot;</span>)) (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;a&quot;</span>)))</a>
+<a class="sourceLine" id="cb21-14" data-line-number="14"></a>
+<a class="sourceLine" id="cb21-15" data-line-number="15">    , check</a>
+<a class="sourceLine" id="cb21-16" data-line-number="16">        (<span class="dt">ELet</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)</a>
+<a class="sourceLine" id="cb21-17" data-line-number="17">          (<span class="dt">ELam</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)))</a>
+<a class="sourceLine" id="cb21-18" data-line-number="18">          (<span class="dt">ELam</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;z&quot;</span>)</a>
+<a class="sourceLine" id="cb21-19" data-line-number="19">            (<span class="dt">EApp</span> <span class="dt">Q</span> (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;z&quot;</span>)) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)))))</a>
+<a class="sourceLine" id="cb21-20" data-line-number="20">        (<span class="dt">TArr</span> <span class="dt">Q</span></a>
+<a class="sourceLine" id="cb21-21" data-line-number="21">          (<span class="dt">TArr</span> <span class="dt">Q</span></a>
+<a class="sourceLine" id="cb21-22" data-line-number="22">            (<span class="dt">TArr</span> <span class="dt">Q</span> (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;a&quot;</span>)) (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;a&quot;</span>)))</a>
+<a class="sourceLine" id="cb21-23" data-line-number="23">            (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;b&quot;</span>)))</a>
+<a class="sourceLine" id="cb21-24" data-line-number="24">          (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;b&quot;</span>)))</a>
+<a class="sourceLine" id="cb21-25" data-line-number="25">    ]</a></code></pre></div>
+<p>Naively generating arbitrary test cases for type inference is problematic; to meaningfully test expressions with free variables and constants we need to have an appropriate type environment first. The naive way to generate a type environment ends up giving us lots of malformed and unnatural type environments. A realistic environment will have been built up one step at a time, with each new type definition coming from a typeable expression and being consistent with the ones before.</p>
+<p>To get more meaningful test results, we need a specialized test case generator for <code>TypeEnv</code>s; one that builds up an environment one typed expression at a time.</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb22-1" data-line-number="1"><span class="ot">genTypeEnv ::</span> <span class="dt">Gen</span> <span class="dt">TypeEnv</span></a>
+<a class="sourceLine" id="cb22-2" data-line-number="2">genTypeEnv <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb22-3" data-line-number="3">  k <span class="ot">&lt;-</span> getSize</a>
+<a class="sourceLine" id="cb22-4" data-line-number="4">  genEnv k</a>
+<a class="sourceLine" id="cb22-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb22-6" data-line-number="6">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb22-7" data-line-number="7"><span class="ot">    genEnv ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Gen</span> <span class="dt">TypeEnv</span></a>
+<a class="sourceLine" id="cb22-8" data-line-number="8">    genEnv k <span class="fu">=</span></a>
+<a class="sourceLine" id="cb22-9" data-line-number="9">      <span class="kw">if</span> k <span class="fu">&lt;=</span> <span class="dv">0</span></a>
+<a class="sourceLine" id="cb22-10" data-line-number="10">        <span class="kw">then</span> return emptyTypeEnv</a>
+<a class="sourceLine" id="cb22-11" data-line-number="11">        <span class="kw">else</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb22-12" data-line-number="12">          m <span class="ot">&lt;-</span> elements [<span class="dv">0</span><span class="fu">..</span>(k<span class="fu">-</span><span class="dv">1</span>)]</a>
+<a class="sourceLine" id="cb22-13" data-line-number="13">          genEnv m <span class="fu">&gt;&gt;=</span> extend</a>
+<a class="sourceLine" id="cb22-14" data-line-number="14"></a>
+<a class="sourceLine" id="cb22-15" data-line-number="15"><span class="ot">    extend ::</span> <span class="dt">TypeEnv</span> <span class="ot">-&gt;</span> <span class="dt">Gen</span> <span class="dt">TypeEnv</span></a>
+<a class="sourceLine" id="cb22-16" data-line-number="16">    extend env <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb22-17" data-line-number="17">      <span class="kw">let</span> x <span class="fu">=</span> fresh [ typedVarsIn env ]</a>
+<a class="sourceLine" id="cb22-18" data-line-number="18">      e <span class="ot">&lt;-</span> arbitrary</a>
+<a class="sourceLine" id="cb22-19" data-line-number="19">      <span class="kw">case</span> execInfer <span class="fu">$</span> infer env e <span class="kw">of</span></a>
+<a class="sourceLine" id="cb22-20" data-line-number="20">        <span class="dt">Right</span> (_,t) <span class="ot">-&gt;</span> return <span class="fu">$</span></a>
+<a class="sourceLine" id="cb22-21" data-line-number="21">          setTypeOfVar env (x, generalize env t)</a>
+<a class="sourceLine" id="cb22-22" data-line-number="22">        <span class="dt">Left</span> _ <span class="ot">-&gt;</span> extend env</a></code></pre></div>
+<p>With this generator in hand, we can define a property test.</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb23-1" data-line-number="1"><span class="ot">test_infer_sub ::</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb23-2" data-line-number="2">test_infer_sub e <span class="fu">=</span> forAll genTypeEnv (test_infer_sub&#39; e)</a>
+<a class="sourceLine" id="cb23-3" data-line-number="3">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb23-4" data-line-number="4"><span class="ot">  test_infer_sub&#39; ::</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">TypeEnv</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb23-5" data-line-number="5">  test_infer_sub&#39; e env <span class="fu">=</span> <span class="kw">case</span> execInfer <span class="fu">$</span> infer env e <span class="kw">of</span> </a>
+<a class="sourceLine" id="cb23-6" data-line-number="6">    <span class="dt">Left</span> _ <span class="ot">-&gt;</span> <span class="dt">True</span></a>
+<a class="sourceLine" id="cb23-7" data-line-number="7">    <span class="dt">Right</span> (s,t1) <span class="ot">-&gt;</span> <span class="kw">case</span> execInfer <span class="fu">$</span> infer (s <span class="fu">$.</span> env) e <span class="kw">of</span></a>
+<a class="sourceLine" id="cb23-8" data-line-number="8">      <span class="dt">Left</span> _ <span class="ot">-&gt;</span> <span class="dt">False</span></a>
+<a class="sourceLine" id="cb23-9" data-line-number="9">      <span class="dt">Right</span> (_,t2) <span class="ot">-&gt;</span> (<span class="fu">==</span>)</a>
+<a class="sourceLine" id="cb23-10" data-line-number="10">        (generalize env (s <span class="fu">$.</span> t1))</a>
+<a class="sourceLine" id="cb23-11" data-line-number="11">        (generalize env t2)</a></code></pre></div>
+<h2 id="type-checking">Type Checking</h2>
+<p>The main thing we do with type inference is make sure that a given expression can be assigned a type. We’ll call this <em>type checking</em>. This process will take a possibly typeable thing and a type environment, and attempt to construct a new environment within which the possibly typeable thing has a type. We can wrap this in a class.</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb24-1" data-line-number="1"><span class="kw">class</span> (<span class="dt">HasExprVars</span> t) <span class="ot">=&gt;</span> <span class="dt">TypeCheck</span> t <span class="kw">where</span></a>
+<a class="sourceLine" id="cb24-2" data-line-number="2"><span class="ot">  typeCheck ::</span> t <span class="ot">-&gt;</span> <span class="dt">TypeEnv</span> <span class="ot">-&gt;</span> <span class="dt">Infer</span> <span class="dt">TypeEnv</span></a></code></pre></div>
+<p>In the process of type checking, we will often need to introduce or eliminate variables in type environments.</p>
+<div class="sourceCode" id="cb25"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb25-1" data-line-number="1"><span class="ot">introTypeVar ::</span> <span class="dt">Var</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">TypeEnv</span> <span class="ot">-&gt;</span> <span class="dt">Infer</span> <span class="dt">TypeEnv</span></a>
+<a class="sourceLine" id="cb25-2" data-line-number="2">introTypeVar x env <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb25-3" data-line-number="3">  tau <span class="ot">&lt;-</span> freshTypeVar</a>
+<a class="sourceLine" id="cb25-4" data-line-number="4">  return <span class="fu">$</span> setTypeOfVar env (x, <span class="dt">ForAll</span> S.empty tau)</a>
+<a class="sourceLine" id="cb25-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb25-6" data-line-number="6">introTypeVars</a>
+<a class="sourceLine" id="cb25-7" data-line-number="7"><span class="ot">  ::</span> (<span class="dt">Foldable</span> f) <span class="ot">=&gt;</span> f (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="ot">-&gt;</span> <span class="dt">TypeEnv</span> <span class="ot">-&gt;</span> <span class="dt">Infer</span> <span class="dt">TypeEnv</span></a>
+<a class="sourceLine" id="cb25-8" data-line-number="8">introTypeVars xs env <span class="fu">=</span> foldM (flip introTypeVar) env xs</a>
+<a class="sourceLine" id="cb25-9" data-line-number="9"></a>
+<a class="sourceLine" id="cb25-10" data-line-number="10"><span class="ot">elimTypeVar ::</span> <span class="dt">Var</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">TypeEnv</span> <span class="ot">-&gt;</span> <span class="dt">Infer</span> <span class="dt">TypeEnv</span></a>
+<a class="sourceLine" id="cb25-11" data-line-number="11">elimTypeVar x env <span class="fu">=</span></a>
+<a class="sourceLine" id="cb25-12" data-line-number="12"> return <span class="fu">$</span> removeTypeOfVar x env</a></code></pre></div>
+<p>Now <code>Expr</code>s can be type checked. To do this we first introduce a new type variable for each free expression variable and then infer the type of the expression.</p>
+<div class="sourceCode" id="cb26"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb26-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">TypeCheck</span> <span class="dt">Expr</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb26-2" data-line-number="2">  typeCheck e env <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb26-3" data-line-number="3">    env&#39; <span class="ot">&lt;-</span> introTypeVars (freeExprVars e) env</a>
+<a class="sourceLine" id="cb26-4" data-line-number="4">    (s,_) <span class="ot">&lt;-</span> infer env&#39; e</a>
+<a class="sourceLine" id="cb26-5" data-line-number="5">    return <span class="fu">$</span> s <span class="fu">$.</span> env&#39;</a></code></pre></div>
+<p>Let’s see some examples. First we need a helper; it will be more useful to check type environments “up to a unification”. <code>_typecheck_and_unify</code> takes care of this.</p>
+<div class="sourceCode" id="cb27"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb27-1" data-line-number="1">_typecheck_and_unify</a>
+<a class="sourceLine" id="cb27-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">TypeCheck</span> t) <span class="ot">=&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">TypeEnv</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb27-3" data-line-number="3">_typecheck_and_unify a env <span class="fu">=</span></a>
+<a class="sourceLine" id="cb27-4" data-line-number="4">  <span class="kw">let</span> x <span class="fu">=</span> execInfer <span class="fu">$</span> typeCheck a emptyTypeEnv <span class="kw">in</span></a>
+<a class="sourceLine" id="cb27-5" data-line-number="5">  <span class="kw">case</span> x <span class="kw">of</span></a>
+<a class="sourceLine" id="cb27-6" data-line-number="6">    <span class="dt">Right</span> ex <span class="ot">-&gt;</span> <span class="kw">case</span> unifyTypes ex env <span class="kw">of</span></a>
+<a class="sourceLine" id="cb27-7" data-line-number="7">      <span class="dt">Left</span> _ <span class="ot">-&gt;</span> <span class="dt">False</span></a>
+<a class="sourceLine" id="cb27-8" data-line-number="8">      <span class="dt">Right</span> s <span class="ot">-&gt;</span> trivialMonoTypeSub s</a>
+<a class="sourceLine" id="cb27-9" data-line-number="9">    <span class="dt">Left</span> _ <span class="ot">-&gt;</span> <span class="dt">True</span></a></code></pre></div>
+<p>And the test cases. First: from <span class="math inline">\(\lambda x . y x\)</span> we infer that <span class="math inline">\(y\)</span> has type <span class="math inline">\(a \rightarrow b\)</span> for some types <span class="math inline">\(a\)</span> and <span class="math inline">\(b\)</span>.</p>
+<div class="sourceCode" id="cb28"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb28-1" data-line-number="1"><span class="ot">test_cases_typecheck_expr ::</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb28-2" data-line-number="2">test_cases_typecheck_expr <span class="fu">=</span> and</a>
+<a class="sourceLine" id="cb28-3" data-line-number="3">  [ _typecheck_and_unify</a>
+<a class="sourceLine" id="cb28-4" data-line-number="4"></a>
+<a class="sourceLine" id="cb28-5" data-line-number="5">    (<span class="dt">ELam</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)</a>
+<a class="sourceLine" id="cb28-6" data-line-number="6">      (<span class="dt">EApp</span> <span class="dt">Q</span> (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>))))</a>
+<a class="sourceLine" id="cb28-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb28-8" data-line-number="8">    (<span class="dt">TypeEnv</span> <span class="fu">$</span> M.fromList</a>
+<a class="sourceLine" id="cb28-9" data-line-number="9">      [ (<span class="dt">Right</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>), <span class="dt">ForAll</span> (S.fromList [])</a>
+<a class="sourceLine" id="cb28-10" data-line-number="10">        (<span class="dt">TArr</span> <span class="dt">Q</span> (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;a&quot;</span>)) (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;b&quot;</span>))))</a>
+<a class="sourceLine" id="cb28-11" data-line-number="11">      ])</a></code></pre></div>
+<p>From <span class="math inline">\(\lambda x . \lambda y . (zx)y\)</span> we infer that <span class="math inline">\(z\)</span> has type <span class="math inline">\(a \rightarrow b \rightarrow c\)</span>.</p>
+<div class="sourceCode" id="cb29"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb29-1" data-line-number="1">  , _typecheck_and_unify</a>
+<a class="sourceLine" id="cb29-2" data-line-number="2"></a>
+<a class="sourceLine" id="cb29-3" data-line-number="3">    (<span class="dt">ELam</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)</a>
+<a class="sourceLine" id="cb29-4" data-line-number="4">      (<span class="dt">ELam</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)</a>
+<a class="sourceLine" id="cb29-5" data-line-number="5">        (<span class="dt">EApp</span> <span class="dt">Q</span></a>
+<a class="sourceLine" id="cb29-6" data-line-number="6">          (<span class="dt">EApp</span> <span class="dt">Q</span> (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;z&quot;</span>)) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)))</a>
+<a class="sourceLine" id="cb29-7" data-line-number="7">          (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)))))</a>
+<a class="sourceLine" id="cb29-8" data-line-number="8"></a>
+<a class="sourceLine" id="cb29-9" data-line-number="9">    (<span class="dt">TypeEnv</span> <span class="fu">$</span> M.fromList</a>
+<a class="sourceLine" id="cb29-10" data-line-number="10">      [ (<span class="dt">Right</span> (<span class="dt">Var</span> <span class="st">&quot;z&quot;</span>), <span class="dt">ForAll</span> (S.fromList [])</a>
+<a class="sourceLine" id="cb29-11" data-line-number="11">        (<span class="dt">TArr</span> <span class="dt">Q</span> (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;a&quot;</span>))</a>
+<a class="sourceLine" id="cb29-12" data-line-number="12">          (<span class="dt">TArr</span> <span class="dt">Q</span> (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;b&quot;</span>)) (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;c&quot;</span>)))))</a>
+<a class="sourceLine" id="cb29-13" data-line-number="13">      ])</a>
+<a class="sourceLine" id="cb29-14" data-line-number="14">  ]</a></code></pre></div>
+<p>Type checking is important, so we should think about property testing for it. Since <code>TypeCheck</code> is a subclass of <code>HasExprVars</code>, we should think about how <code>typeCheck</code> interacts with the renaming functions.</p>
+<p>For instance: the free variables in a type checked thing are assigned types in the environment.</p>
+<div class="sourceCode" id="cb30"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb30-1" data-line-number="1">test_typecheck_free_vars</a>
+<a class="sourceLine" id="cb30-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">TypeCheck</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb30-3" data-line-number="3">test_typecheck_free_vars _ x <span class="fu">=</span></a>
+<a class="sourceLine" id="cb30-4" data-line-number="4">  forAll genTypeEnv (test_typecheck_free_vars&#39; x)</a>
+<a class="sourceLine" id="cb30-5" data-line-number="5">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb30-6" data-line-number="6">    test_typecheck_free_vars&#39;</a>
+<a class="sourceLine" id="cb30-7" data-line-number="7"><span class="ot">      ::</span> (<span class="dt">TypeCheck</span> t) <span class="ot">=&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">TypeEnv</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb30-8" data-line-number="8">    test_typecheck_free_vars&#39; x env <span class="fu">=</span></a>
+<a class="sourceLine" id="cb30-9" data-line-number="9">      <span class="kw">case</span> execInfer <span class="fu">$</span> typeCheck x env <span class="kw">of</span></a>
+<a class="sourceLine" id="cb30-10" data-line-number="10">        <span class="dt">Left</span> _ <span class="ot">-&gt;</span> <span class="dt">True</span></a>
+<a class="sourceLine" id="cb30-11" data-line-number="11">        <span class="dt">Right</span> (<span class="dt">TypeEnv</span> m) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb30-12" data-line-number="12">          all (\z <span class="ot">-&gt;</span> elem (<span class="dt">Right</span> z) <span class="fu">$</span> M.keys m) (freeExprVars x)</a></code></pre></div>
+<p>Another property is that renaming the bound variables in a type checkable thing should not affect the outcome of type checking.</p>
+<div class="sourceCode" id="cb31"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb31-1" data-line-number="1">test_typecheck_bound_vars</a>
+<a class="sourceLine" id="cb31-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">TypeCheck</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">S.Set</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb31-3" data-line-number="3">test_typecheck_bound_vars _ x avoid <span class="fu">=</span></a>
+<a class="sourceLine" id="cb31-4" data-line-number="4">  forAll genTypeEnv (test_typecheck_bound_vars&#39; x avoid)</a>
+<a class="sourceLine" id="cb31-5" data-line-number="5">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb31-6" data-line-number="6">    test_typecheck_bound_vars&#39;</a>
+<a class="sourceLine" id="cb31-7" data-line-number="7"><span class="ot">      ::</span> (<span class="dt">TypeCheck</span> t) <span class="ot">=&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">S.Set</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="ot">-&gt;</span> <span class="dt">TypeEnv</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb31-8" data-line-number="8">    test_typecheck_bound_vars&#39; x avoid env <span class="fu">=</span></a>
+<a class="sourceLine" id="cb31-9" data-line-number="9">      <span class="kw">let</span></a>
+<a class="sourceLine" id="cb31-10" data-line-number="10">        a <span class="fu">=</span> execInfer <span class="fu">$</span> typeCheck x env</a>
+<a class="sourceLine" id="cb31-11" data-line-number="11">        b <span class="fu">=</span> execInfer <span class="fu">$</span> typeCheck</a>
+<a class="sourceLine" id="cb31-12" data-line-number="12">          (renameBoundExpr</a>
+<a class="sourceLine" id="cb31-13" data-line-number="13">            (S.unions [avoid, typedVarsIn env, freeExprVars x]) x) env</a>
+<a class="sourceLine" id="cb31-14" data-line-number="14">      <span class="kw">in</span> <span class="kw">case</span> (a,b) <span class="kw">of</span></a>
+<a class="sourceLine" id="cb31-15" data-line-number="15">        (<span class="dt">Right</span> env1, <span class="dt">Right</span> env2) <span class="ot">-&gt;</span> <span class="kw">case</span> unifyTypes env1 env2 <span class="kw">of</span></a>
+<a class="sourceLine" id="cb31-16" data-line-number="16">          <span class="dt">Left</span> _ <span class="ot">-&gt;</span> <span class="dt">False</span></a>
+<a class="sourceLine" id="cb31-17" data-line-number="17">          <span class="dt">Right</span> s <span class="ot">-&gt;</span> <span class="dt">True</span></a>
+<a class="sourceLine" id="cb31-18" data-line-number="18">        (<span class="dt">Left</span> _, <span class="dt">Left</span> _) <span class="ot">-&gt;</span> <span class="dt">True</span></a>
+<a class="sourceLine" id="cb31-19" data-line-number="19">        _ <span class="ot">-&gt;</span> <span class="dt">False</span></a></code></pre></div>
+<p>And renaming free variables is reflected in the type check result.</p>
+<div class="sourceCode" id="cb32"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb32-1" data-line-number="1">test_typecheck_rename_free</a>
+<a class="sourceLine" id="cb32-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">TypeCheck</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb32-3" data-line-number="3">test_typecheck_rename_free _ t <span class="fu">=</span></a>
+<a class="sourceLine" id="cb32-4" data-line-number="4">  forAll genTypeEnv (test_typecheck_rename_free&#39; t)</a>
+<a class="sourceLine" id="cb32-5" data-line-number="5">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb32-6" data-line-number="6">    test_typecheck_rename_free&#39;</a>
+<a class="sourceLine" id="cb32-7" data-line-number="7"><span class="ot">      ::</span> (<span class="dt">TypeCheck</span> t) <span class="ot">=&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">TypeEnv</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb32-8" data-line-number="8">    test_typecheck_rename_free&#39; t env <span class="fu">=</span></a>
+<a class="sourceLine" id="cb32-9" data-line-number="9">      <span class="kw">let</span></a>
+<a class="sourceLine" id="cb32-10" data-line-number="10">        x <span class="fu">=</span> fresh</a>
+<a class="sourceLine" id="cb32-11" data-line-number="11">          [ typedVarsIn env ]</a>
+<a class="sourceLine" id="cb32-12" data-line-number="12">        y <span class="fu">=</span> fresh</a>
+<a class="sourceLine" id="cb32-13" data-line-number="13">          [ S.singleton x</a>
+<a class="sourceLine" id="cb32-14" data-line-number="14">          , freeExprVars t</a>
+<a class="sourceLine" id="cb32-15" data-line-number="15">          , typedVarsIn env ]</a>
+<a class="sourceLine" id="cb32-16" data-line-number="16">        a <span class="fu">=</span> execInfer <span class="fu">$</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb32-17" data-line-number="17">          env&#39; <span class="ot">&lt;-</span> typeCheck t env</a>
+<a class="sourceLine" id="cb32-18" data-line-number="18">          lookupEnvVar <span class="dt">Q</span> env&#39; x</a>
+<a class="sourceLine" id="cb32-19" data-line-number="19">        b <span class="fu">=</span> execInfer <span class="fu">$</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb32-20" data-line-number="20">          env&#39; <span class="ot">&lt;-</span> typeCheck (renameFreeExpr (x,y) t) env</a>
+<a class="sourceLine" id="cb32-21" data-line-number="21">          lookupEnvVar <span class="dt">Q</span> env&#39; y</a>
+<a class="sourceLine" id="cb32-22" data-line-number="22">      <span class="kw">in</span></a>
+<a class="sourceLine" id="cb32-23" data-line-number="23">        <span class="kw">case</span> (a,b) <span class="kw">of</span></a>
+<a class="sourceLine" id="cb32-24" data-line-number="24">          (<span class="dt">Right</span> e1, <span class="dt">Right</span> e2) <span class="ot">-&gt;</span> <span class="kw">case</span> unifyTypes e1 e2 <span class="kw">of</span></a>
+<a class="sourceLine" id="cb32-25" data-line-number="25">            <span class="dt">Left</span> _ <span class="ot">-&gt;</span> <span class="dt">False</span></a>
+<a class="sourceLine" id="cb32-26" data-line-number="26">            <span class="dt">Right</span> s <span class="ot">-&gt;</span> <span class="dt">True</span></a>
+<a class="sourceLine" id="cb32-27" data-line-number="27">          (<span class="dt">Left</span> _, <span class="dt">Left</span> _) <span class="ot">-&gt;</span> <span class="dt">True</span></a>
+<a class="sourceLine" id="cb32-28" data-line-number="28">          _ <span class="ot">-&gt;</span> <span class="dt">False</span></a></code></pre></div>
+<h2 id="recap">Recap</h2>
+<p>We’ve defined a grammar of types and developed a function for inferring the type of a lambda expression.</p>
+<p>In the next sections we’ll use lambda expressions as the basis for a grammar of logical statements.</p>
+</body>
+</html>

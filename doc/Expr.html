@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Expressions</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+  <style type="text/css">
+a.sourceLine { display: inline-block; line-height: 1.25; }
+a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
+a.sourceLine:empty { height: 1.2em; position: absolute; }
+.sourceCode { overflow: visible; }
+code.sourceCode { white-space: pre; position: relative; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+code.sourceCode { white-space: pre-wrap; }
+a.sourceLine { text-indent: -1em; padding-left: 1em; }
+}
+pre.numberSource a.sourceLine
+  { position: relative; }
+pre.numberSource a.sourceLine:empty
+  { position: absolute; }
+pre.numberSource a.sourceLine::before
+  { content: attr(data-line-number);
+    position: absolute; left: -5em; text-align: right; vertical-align: baseline;
+    border: none; pointer-events: all;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {  }
+@media screen {
+a.sourceLine::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS_CHTML-full" type="text/javascript"></script>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<header>
+<h1 class="title">Expressions</h1>
+</header>
+<p>In this section we’ll define a grammar of <em>expressions</em>. This grammar will just be <a href="https://en.wikipedia.org/wiki/Lambda_calculus">lambda calculus</a> with an additional syntactic form, called a <em>let binding</em>, which is semantically redundant but practically useful.</p>
+<p>A natural question we should be asking is, <em>why lambda calculus</em>? There are a few reasons.</p>
+<ol type="1">
+<li>It is simple. As a grammar it has only five production rules.</li>
+<li>It is powerful. In principle any reasonable model of computation can be translated to LC; it’s also the basis of practical Lisp-family and ML-family languages.</li>
+<li>It is familiar. Lambda calculus is the OG modern computational formalism, it’s been in use for over 80 years, and the syntax is essentially function notation from mathematics.</li>
+<li>It has an efficient <a href="https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system"><em>type inference algorithm</em></a>, to be discussed later.</li>
+</ol>
+<p>Lambda calculus hits a sweet spot on the simplicity/power spectrum. It is <em>boring</em> in the best sense of the word; it is old and very well understood.</p>
+<p>As usual, we start with some module imports.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ot">{-# LANGUAGE LambdaCase, FlexibleInstances, BangPatterns #-}</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="kw">module</span> <span class="dt">Expr</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb1-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Map</span> <span class="kw">as</span> <span class="dt">M</span></a>
+<a class="sourceLine" id="cb1-5" data-line-number="5">  ( <span class="dt">Map</span>, fromList, toList, elems )</a>
+<a class="sourceLine" id="cb1-6" data-line-number="6"><span class="kw">import</span> <span class="dt">Data.Proxy</span></a>
+<a class="sourceLine" id="cb1-7" data-line-number="7">  ( <span class="dt">Proxy</span>(<span class="dt">Proxy</span>) )</a>
+<a class="sourceLine" id="cb1-8" data-line-number="8"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Set</span> <span class="kw">as</span> <span class="dt">S</span></a>
+<a class="sourceLine" id="cb1-9" data-line-number="9">  ( <span class="dt">Set</span>, insert, member, disjoint, empty, singleton</a>
+<a class="sourceLine" id="cb1-10" data-line-number="10">  , unions, notMember, fromList, union, delete )</a>
+<a class="sourceLine" id="cb1-11" data-line-number="11"><span class="kw">import</span> <span class="dt">Test.QuickCheck</span></a>
+<a class="sourceLine" id="cb1-12" data-line-number="12">  ( <span class="dt">Arbitrary</span>(<span class="fu">..</span>), <span class="dt">Gen</span>, elements, oneof, getSize )</a>
+<a class="sourceLine" id="cb1-13" data-line-number="13"></a>
+<a class="sourceLine" id="cb1-14" data-line-number="14"><span class="kw">import</span> <span class="dt">Var</span></a>
+<a class="sourceLine" id="cb1-15" data-line-number="15"><span class="kw">import</span> <span class="dt">Sub</span></a></code></pre></div>
+<h2 id="lambda-calculus">Lambda Calculus</h2>
+<p>Recall that <em>lambda expressions</em> are built up inductively using the following rules:</p>
+<ul>
+<li><strong>Var</strong>: Every variable is a lambda expression.</li>
+<li><strong>Lam</strong>: If <span class="math inline">\(x\)</span> is a variable and <span class="math inline">\(e\)</span> is a lambda expression, then <span class="math inline">\(\lambda x . e\)</span> is a lambda expression. The <span class="math inline">\(x\)</span> here is a dummy variable; it’s precise name is not significant.</li>
+<li><strong>App</strong>: If <span class="math inline">\(e_1\)</span> and <span class="math inline">\(e_2\)</span> are lambda expressions, then <span class="math inline">\(e_1 e_2\)</span> is a lambda expression.</li>
+<li><strong>Par</strong>: If <span class="math inline">\(e\)</span> is a lambda expression, then <span class="math inline">\((e)\)</span> is a lambda expression.</li>
+</ul>
+<p>We will augment this with two additional rules:</p>
+<ul>
+<li><strong>Con</strong>: Every constant is a lambda expression.</li>
+<li><strong>Let</strong>: If <span class="math inline">\(x\)</span> is a variable and <span class="math inline">\(e_1\)</span> and <span class="math inline">\(e_2\)</span> are lambda expressions, then <span class="math inline">\(\mathsf{let}\ x = e_1\ \mathsf{in}\ e_2\)</span> is a lambda expression. The <span class="math inline">\(x\)</span> here is also a dummy variable.</li>
+</ul>
+<p>The Con rule effectively defines a new class of variable, all of whose members are automatically bound “outside the expression”.</p>
+<p>The Let rule can be interpreted in terms of App and Lam; the expression <span class="math inline">\(\mathsf{let}\ x = e_1\ \mathsf{in}\ e_2\)</span> will end up being equivalent to <span class="math inline">\((\lambda x . e_2)e_1\)</span>. Later we will be inferring types for expressions, and it turns out there are some typeable expressions involving let whose lambda forms are not typeable; this reasonably minor syntactic extension makes our type system more powerful.</p>
+<p>Anyway, here’s a Haskell type representing the production rules for expressions. The parentheses rule is implicit, and only really needed when expressions are serialized as strings. This type has one extra complication: the <code>Loc</code> parameter, which will eventually represent a <em>source location</em> so we can report useful error messages, but for now is not important.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="kw">data</span> <span class="dt">Expr</span></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2">  <span class="fu">=</span> <span class="dt">ECon</span> <span class="dt">Loc</span> (<span class="dt">Con</span> <span class="dt">Expr</span>)</a>
+<a class="sourceLine" id="cb2-3" data-line-number="3">  <span class="fu">|</span> <span class="dt">EVar</span> <span class="dt">Loc</span> (<span class="dt">Var</span> <span class="dt">Expr</span>)</a>
+<a class="sourceLine" id="cb2-4" data-line-number="4">  <span class="fu">|</span> <span class="dt">ELam</span> <span class="dt">Loc</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="dt">Expr</span></a>
+<a class="sourceLine" id="cb2-5" data-line-number="5">  <span class="fu">|</span> <span class="dt">ELet</span> <span class="dt">Loc</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="dt">Expr</span> <span class="dt">Expr</span></a>
+<a class="sourceLine" id="cb2-6" data-line-number="6">  <span class="fu">|</span> <span class="dt">EApp</span> <span class="dt">Loc</span> <span class="dt">Expr</span> <span class="dt">Expr</span></a>
+<a class="sourceLine" id="cb2-7" data-line-number="7">  <span class="kw">deriving</span> (<span class="dt">Show</span>)</a>
+<a class="sourceLine" id="cb2-8" data-line-number="8"></a>
+<a class="sourceLine" id="cb2-9" data-line-number="9"><span class="kw">data</span> <span class="dt">Loc</span></a>
+<a class="sourceLine" id="cb2-10" data-line-number="10">  <span class="fu">=</span> <span class="dt">Q</span> <span class="co">-- &quot;Nowhere&quot;</span></a>
+<a class="sourceLine" id="cb2-11" data-line-number="11">  <span class="fu">|</span> <span class="dt">Loc</span> <span class="dt">String</span> <span class="dt">Int</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb2-12" data-line-number="12">  <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Ord</span>, <span class="dt">Show</span>)</a></code></pre></div>
+<p>We also need an <code>Arbitrary</code> instance for generating <code>Expr</code>s. This generator uses an explicit depth parameter, based on <code>QuickCheck</code>’s <em>size</em> state, to ensure that each recursive step generates a smaller <code>Expr</code>. An earlier version of this generator simply chose one of <code>Expr</code>s constructors to generate, which led to comically large test cases.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">Arbitrary</span> <span class="dt">Expr</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb3-2" data-line-number="2">  arbitrary <span class="fu">=</span> getSize <span class="fu">&gt;&gt;=</span> genDepth</a>
+<a class="sourceLine" id="cb3-3" data-line-number="3">    <span class="kw">where</span></a>
+<a class="sourceLine" id="cb3-4" data-line-number="4"><span class="ot">      genDepth ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Gen</span> <span class="dt">Expr</span></a>
+<a class="sourceLine" id="cb3-5" data-line-number="5">      genDepth k</a>
+<a class="sourceLine" id="cb3-6" data-line-number="6">        <span class="fu">|</span> k <span class="fu">&lt;=</span> <span class="dv">0</span> <span class="fu">=</span> oneof</a>
+<a class="sourceLine" id="cb3-7" data-line-number="7">            [ <span class="dt">ECon</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
+<a class="sourceLine" id="cb3-8" data-line-number="8">            , <span class="dt">EVar</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
+<a class="sourceLine" id="cb3-9" data-line-number="9">            ]</a>
+<a class="sourceLine" id="cb3-10" data-line-number="10">        <span class="fu">|</span> otherwise <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb3-11" data-line-number="11">            <span class="kw">let</span> recur <span class="fu">=</span> genDepth <span class="fu">=&lt;&lt;</span> elements [<span class="dv">0</span><span class="fu">..</span>(k<span class="fu">-</span><span class="dv">1</span>)]</a>
+<a class="sourceLine" id="cb3-12" data-line-number="12">            oneof</a>
+<a class="sourceLine" id="cb3-13" data-line-number="13">              [ <span class="dt">ELam</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> recur</a>
+<a class="sourceLine" id="cb3-14" data-line-number="14">              , <span class="dt">ELet</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> recur <span class="fu">&lt;*&gt;</span> recur</a>
+<a class="sourceLine" id="cb3-15" data-line-number="15">              , <span class="dt">EApp</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> recur <span class="fu">&lt;*&gt;</span> recur</a>
+<a class="sourceLine" id="cb3-16" data-line-number="16">              ]</a>
+<a class="sourceLine" id="cb3-17" data-line-number="17"></a>
+<a class="sourceLine" id="cb3-18" data-line-number="18">  shrink <span class="fu">=</span> \<span class="kw">case</span></a>
+<a class="sourceLine" id="cb3-19" data-line-number="19">    <span class="dt">ECon</span> _ _ <span class="ot">-&gt;</span> []</a>
+<a class="sourceLine" id="cb3-20" data-line-number="20">    <span class="dt">EVar</span> _ _ <span class="ot">-&gt;</span> []</a>
+<a class="sourceLine" id="cb3-21" data-line-number="21">    <span class="dt">ELam</span> loc x e <span class="ot">-&gt;</span> (e<span class="fu">:</span>) <span class="fu">$</span> map (<span class="dt">ELam</span> loc x) <span class="fu">$</span> shrink e</a>
+<a class="sourceLine" id="cb3-22" data-line-number="22">    <span class="dt">ELet</span> loc x e1 e2 <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb3-23" data-line-number="23">      [ e1, e2 ] <span class="fu">++</span></a>
+<a class="sourceLine" id="cb3-24" data-line-number="24">      [ <span class="dt">ELet</span> loc x f1 f2 <span class="fu">|</span> f1 <span class="ot">&lt;-</span> shrink e1, f2 <span class="ot">&lt;-</span> shrink e2 ] <span class="fu">++</span></a>
+<a class="sourceLine" id="cb3-25" data-line-number="25">      [ <span class="dt">ELet</span> loc x e1 f2 <span class="fu">|</span> f2 <span class="ot">&lt;-</span> shrink e2 ] <span class="fu">++</span></a>
+<a class="sourceLine" id="cb3-26" data-line-number="26">      [ <span class="dt">ELet</span> loc x f1 e2 <span class="fu">|</span> f1 <span class="ot">&lt;-</span> shrink e1 ]</a>
+<a class="sourceLine" id="cb3-27" data-line-number="27">    <span class="dt">EApp</span> loc e1 e2 <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb3-28" data-line-number="28">      [ e1, e2 ] <span class="fu">++</span></a>
+<a class="sourceLine" id="cb3-29" data-line-number="29">      [ <span class="dt">EApp</span> loc f1 f2 <span class="fu">|</span> f1 <span class="ot">&lt;-</span> shrink e1, f2 <span class="ot">&lt;-</span> shrink e2 ] <span class="fu">++</span></a>
+<a class="sourceLine" id="cb3-30" data-line-number="30">      [ <span class="dt">EApp</span> loc e1 f2 <span class="fu">|</span> f2 <span class="ot">&lt;-</span> shrink e2 ] <span class="fu">++</span></a>
+<a class="sourceLine" id="cb3-31" data-line-number="31">      [ <span class="dt">EApp</span> loc f1 e2 <span class="fu">|</span> f1 <span class="ot">&lt;-</span> shrink e1 ]</a>
+<a class="sourceLine" id="cb3-32" data-line-number="32"></a>
+<a class="sourceLine" id="cb3-33" data-line-number="33"><span class="kw">instance</span> <span class="dt">Arbitrary</span> <span class="dt">Loc</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb3-34" data-line-number="34">  arbitrary <span class="fu">=</span> <span class="dt">Loc</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a></code></pre></div>
+<p>We also define an <code>Arbitrary</code> instance for <code>Con Expr</code>s and <code>Var Expr</code>s. For simplicity this instance generates constants of the form <code>cN</code> and variables of the form <code>xN</code> where <code>N</code> is a natural number.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">Arbitrary</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb4-2" data-line-number="2">  arbitrary <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb4-3" data-line-number="3">    k <span class="ot">&lt;-</span> getSize</a>
+<a class="sourceLine" id="cb4-4" data-line-number="4">    i <span class="ot">&lt;-</span> elements [<span class="dv">0</span><span class="fu">..</span>k]</a>
+<a class="sourceLine" id="cb4-5" data-line-number="5">    return <span class="fu">$</span> <span class="dt">Var</span> <span class="fu">$</span> <span class="ch">&#39;x&#39;</span> <span class="fu">:</span> show i</a>
+<a class="sourceLine" id="cb4-6" data-line-number="6"></a>
+<a class="sourceLine" id="cb4-7" data-line-number="7"><span class="kw">instance</span> <span class="dt">Arbitrary</span> (<span class="dt">Con</span> <span class="dt">Expr</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb4-8" data-line-number="8">  arbitrary <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb4-9" data-line-number="9">    k <span class="ot">&lt;-</span> getSize</a>
+<a class="sourceLine" id="cb4-10" data-line-number="10">    i <span class="ot">&lt;-</span> elements [<span class="dv">0</span><span class="fu">..</span>k]</a>
+<a class="sourceLine" id="cb4-11" data-line-number="11">    return <span class="fu">$</span> <span class="dt">Con</span> <span class="fu">$</span> <span class="ch">&#39;c&#39;</span> <span class="fu">:</span> show i</a></code></pre></div>
+<p>Note how the distribution of <code>N</code>s depends on <code>QuickCheck</code>s implicit <em>size</em> parameter. The idea is that larger sizes result in a larger pool of symbols to draw from. This dynamic behavior is useful because small and large variable pools will tax our property tests in different ways.</p>
+<h2 id="alpha-equivalence">Alpha Equivalence</h2>
+<p>Note that we haven’t derived an <code>Eq</code> instance for <code>Expr</code>. This is because the derived <em>syntactic</em> equality on <code>Expr</code> is too strict. It would consider the expressions <span class="math inline">\(\lambda x . x\)</span> and <span class="math inline">\(\lambda y . y\)</span> to be different, even though they only differ in their dummy variables. We’ll be introducing transformations on <code>Expr</code>s that may change the names of dummy variables, and need our notion of equality to account for this – we need to compare expressions for equality “up to a renaming of the dummy variables”. This expanded notion of equality is known as <em>alpha equivalence</em>.</p>
+<p>In order to do this correctly, we need a better understanding of exactly what a dummy variable is.</p>
+<p>Every syntactic occurrence of a variable in an <code>Expr</code> can be characterized as either <em>bound</em>, <em>free</em>, or a <em>binding site</em>. For example, in <span class="math inline">\(\lambda x . e\)</span>, we say that <span class="math inline">\(x\)</span> is a <em>binding site</em>, and any occurrences of <span class="math inline">\(x\)</span> in <span class="math inline">\(e\)</span> are <em>bound</em>. However! The occurrences of <span class="math inline">\(x\)</span> in <span class="math inline">\(e\)</span> are not necessarily bound at this binding site. If some subexpression of <span class="math inline">\(e\)</span> is of the form <span class="math inline">\(\lambda x . f\)</span>, then any occurrences of <span class="math inline">\(x\)</span> in <span class="math inline">\(f\)</span> (which, mind, are also occurrences of <span class="math inline">\(x\)</span> in <span class="math inline">\(e\)</span>) are bound <em>there</em>, unless of course <span class="math inline">\(f\)</span> has a subexpression with an <span class="math inline">\(x\)</span> binding site… to distinguish <span class="math inline">\(x\)</span>s that are bound at the outer <span class="math inline">\(\lambda\)</span> from those bound in the inner <span class="math inline">\(\lambda\)</span>s we need to distinguish between <em>free</em> (not bound) occurrences of <span class="math inline">\(x\)</span> in <span class="math inline">\(e\)</span> (not in <span class="math inline">\(\lambda x.e\)</span>) and <em>bound</em> occurrences of <span class="math inline">\(x\)</span> in <span class="math inline">\(e\)</span>. This is confusing!</p>
+<p>The characterization of variable occurrences in this way is <em>very fragile</em> and fiddly; I think it’s helpful to nail down our ideas in code. To this end, let’s start with a function that finds all of the free variables in an expression; these are the variables that are not bound in a lambda or let expression.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="ot">freeExprVarsE ::</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">S.Set</span> (<span class="dt">Var</span> <span class="dt">Expr</span>)</a>
+<a class="sourceLine" id="cb5-2" data-line-number="2">freeExprVarsE x <span class="fu">=</span> <span class="kw">case</span> x <span class="kw">of</span></a>
+<a class="sourceLine" id="cb5-3" data-line-number="3">  <span class="dt">ECon</span> <span class="fu">!</span>loc _ <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb5-4" data-line-number="4">    S.empty</a></code></pre></div>
+<p>Constant expressions have no free variables. That seems pretty clear.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1">  <span class="dt">EVar</span> <span class="fu">!</span>loc x <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb6-2" data-line-number="2">    S.singleton x</a></code></pre></div>
+<p>Variable expressions have one free variable. That also seems pretty clear; this variable isn’t bound by either a lambda or a let. But wait! What if this is a subexpression of some larger expression where the variable <em>is</em> bound? We don’t have to worry about that. Remember that the characterization of variables as bound or free depends intimately on exactly what expression we’re talking about, and here we have just a variable. Lambda and let expressions will have to fend for themselves.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1">  <span class="dt">ELam</span> <span class="fu">!</span>loc x e <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb7-2" data-line-number="2">    S.delete x <span class="fu">$</span> freeExprVarsE e</a></code></pre></div>
+<p>Lambda expressions! In <span class="math inline">\(\lambda x . e\)</span>, it seems clear that any variables that are free <em>in</em> <span class="math inline">\(e\)</span> will remain free in <span class="math inline">\(\lambda x . e\)</span>, with one exception: any free occurrences of <span class="math inline">\(x\)</span> in <span class="math inline">\(e\)</span> become bound in <span class="math inline">\(\lambda x . e\)</span>.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" data-line-number="1">  <span class="dt">ELet</span> <span class="fu">!</span>loc x e1 e2 <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb8-2" data-line-number="2">    S.union (freeExprVarsE e1) (S.delete x <span class="fu">$</span> freeExprVarsE e2)</a></code></pre></div>
+<p>Let expressions are the other place where a variable can be bound. Remember that <span class="math inline">\(\mathsf{let}\ x = e_1\ \mathsf{in}\ e_2\)</span> should behave like <span class="math inline">\((\lambda x . e_2)e_1\)</span>. Certainly any variables <em>except</em> <span class="math inline">\(x\)</span> that appear in either <span class="math inline">\(e_1\)</span> or <span class="math inline">\(e_2\)</span> should remain free in the let. And certainly any <span class="math inline">\(x\)</span>s appearing in <span class="math inline">\(e_2\)</span> become bound in the let; this is consistent with the way free variables work in lambda expressions. But what about <span class="math inline">\(x\)</span>s that appear free in <span class="math inline">\(e_1\)</span>? Note that they do not become bound in the let – let bindings are not recursive. Some languages that use let bindings in this way provide an additional form, like “letrec”, that does bind recursively. We’re intentionally not doing this because it complicates type inference.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" data-line-number="1">  <span class="dt">EApp</span> <span class="fu">!</span>loc e1 e2 <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb9-2" data-line-number="2">    S.union (freeExprVarsE e1) (freeExprVarsE e2)</a></code></pre></div>
+<p>Finally, the application rule does not bind any variables, so the set of free variables is the union of the sets of free variables of the constituent expressions.</p>
+<p>We can check that <code>freeExprVars</code> behaves as expected with some test cases.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" data-line-number="1"><span class="ot">test_cases_freeExprVars ::</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb10-2" data-line-number="2">test_cases_freeExprVars <span class="fu">=</span> and</a>
+<a class="sourceLine" id="cb10-3" data-line-number="3">  [ (<span class="fu">==</span>)</a>
+<a class="sourceLine" id="cb10-4" data-line-number="4">      (freeExprVarsE</a>
+<a class="sourceLine" id="cb10-5" data-line-number="5">        (<span class="dt">ELam</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)</a>
+<a class="sourceLine" id="cb10-6" data-line-number="6">          (<span class="dt">EApp</span> <span class="dt">Q</span> (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)))))</a>
+<a class="sourceLine" id="cb10-7" data-line-number="7">      (S.fromList [<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>])</a>
+<a class="sourceLine" id="cb10-8" data-line-number="8"></a>
+<a class="sourceLine" id="cb10-9" data-line-number="9">  , (<span class="fu">==</span>)</a>
+<a class="sourceLine" id="cb10-10" data-line-number="10">      (freeExprVarsE</a>
+<a class="sourceLine" id="cb10-11" data-line-number="11">        (<span class="dt">ELet</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>))</a>
+<a class="sourceLine" id="cb10-12" data-line-number="12">          (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;z&quot;</span>))))</a>
+<a class="sourceLine" id="cb10-13" data-line-number="13">      (S.fromList [<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>, <span class="dt">Var</span> <span class="st">&quot;z&quot;</span>])</a>
+<a class="sourceLine" id="cb10-14" data-line-number="14">  ]</a></code></pre></div>
+<p>Reasonable enough, although typing out all those <code>Expr</code>s is a pain. (Eventually we’ll define a more compact syntax for this, but for now working with the raw representation is good enough.)</p>
+<p>A useful operation on expressions is to <em>rename</em> the variables. Normally we don’t want to do this for “top level” expressions, because while bound variables can in principle be renamed without changing the expression, free variables cannot. However, renaming free occurrences will turn out to be a useful stepping stone to detecting when two expressions are alpha equivalent. We will need two different kinds of renamings: of free and bound variables. The signatures of these will be a little different. When renaming a free variable we will usually have a specific replacement name in mind, but when renaming bound variables we won’t really care what the new name is, but will have a set of variable names to <em>avoid</em>.</p>
+<p>The renaming functions for <code>Expr</code> are delicate, so we’ll define them one at a time with tests between.</p>
+<p><code>renameFreeE (u,v) e</code> should look for free occurrences of <code>u</code> in <code>e</code> and replace them with <code>v</code>. Crucially, it should <em>not</em> rename any bound occurrences of <code>u</code>, and it should take care that any free <code>u</code>s do not become bound when turned into <code>v</code>s. We can do this by case analysis on <code>e</code>.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb11-1" data-line-number="1"><span class="ot">renameFreeE ::</span> (<span class="dt">Var</span> <span class="dt">Expr</span>, <span class="dt">Var</span> <span class="dt">Expr</span>) <span class="ot">-&gt;</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">Expr</span></a>
+<a class="sourceLine" id="cb11-2" data-line-number="2">renameFreeE (u,v) <span class="fu">=</span> \<span class="kw">case</span></a>
+<a class="sourceLine" id="cb11-3" data-line-number="3">  <span class="dt">ECon</span> <span class="fu">!</span>loc c <span class="ot">-&gt;</span> <span class="dt">ECon</span> loc c</a></code></pre></div>
+<p>Constant expressions have no free variables to be renamed. That seems clear.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb12-1" data-line-number="1">  <span class="dt">EVar</span> <span class="fu">!</span>loc x <span class="ot">-&gt;</span> <span class="dt">EVar</span> loc <span class="fu">$</span> <span class="kw">if</span> x <span class="fu">==</span> u <span class="kw">then</span> v <span class="kw">else</span> x</a></code></pre></div>
+<p>The variable in a variable expression is always free; in this case, renaming the variable is straightforward. See if <span class="math inline">\(x\)</span> matches the variable <span class="math inline">\(u\)</span> to be renamed, and rename it if so.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb13-1" data-line-number="1">  <span class="dt">ELam</span> <span class="fu">!</span>loc x e <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb13-2" data-line-number="2">    <span class="kw">if</span> x <span class="fu">==</span> u</a>
+<a class="sourceLine" id="cb13-3" data-line-number="3">      <span class="kw">then</span> <span class="dt">ELam</span> loc x e</a>
+<a class="sourceLine" id="cb13-4" data-line-number="4">      <span class="kw">else</span> <span class="kw">if</span> x <span class="fu">/=</span> v</a>
+<a class="sourceLine" id="cb13-5" data-line-number="5">        <span class="kw">then</span> <span class="dt">ELam</span> loc x (renameFreeE (u,v) e)</a>
+<a class="sourceLine" id="cb13-6" data-line-number="6">        <span class="kw">else</span></a>
+<a class="sourceLine" id="cb13-7" data-line-number="7">          <span class="kw">let</span></a>
+<a class="sourceLine" id="cb13-8" data-line-number="8">            y <span class="fu">=</span> fresh</a>
+<a class="sourceLine" id="cb13-9" data-line-number="9">              [ S.fromList [u,v]</a>
+<a class="sourceLine" id="cb13-10" data-line-number="10">              , freeExprVarsE e ]</a>
+<a class="sourceLine" id="cb13-11" data-line-number="11">          <span class="kw">in</span></a>
+<a class="sourceLine" id="cb13-12" data-line-number="12">            <span class="dt">ELam</span> loc y</a>
+<a class="sourceLine" id="cb13-13" data-line-number="13">              (renameFreeE (u,v) <span class="fu">$</span> renameFreeE (x,y) e)</a></code></pre></div>
+<p>Lambda expressions are more interesting. If <span class="math inline">\(u\)</span> matches the variable at the binding site, then all occurrences of <span class="math inline">\(u\)</span> in the subexpression <span class="math inline">\(e\)</span> are bound – no more renaming needs to be done, because there are no free <span class="math inline">\(u\)</span>s. If <span class="math inline">\(u\)</span> <em>doesn’t</em> match the variable in the binding site then there may be free occurrences of <span class="math inline">\(u\)</span> in <span class="math inline">\(e\)</span>, so we need to recursively rename them. But there’s a risk. If <span class="math inline">\(v\)</span> doesn’t match the variable at the binding site, we can rename free <span class="math inline">\(u\)</span>s to <span class="math inline">\(v\)</span>s in <span class="math inline">\(e\)</span>. But if <span class="math inline">\(v\)</span> <em>does</em> match the variable at the binding site, then just renaming <span class="math inline">\(u\)</span>s to <span class="math inline">\(v\)</span>s will turn free variables into bound variables. In this case we need to rename the free occurrences of the binding site variable. But we can’t just call it anything; we have to make sure <span class="math inline">\(y\)</span> won’t clash with any variables that are already free in <span class="math inline">\(e\)</span> or with either <span class="math inline">\(u\)</span> or <span class="math inline">\(v\)</span>.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb14-1" data-line-number="1">  <span class="dt">ELet</span> <span class="fu">!</span>loc x e1 e2 <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb14-2" data-line-number="2">    <span class="kw">if</span> x <span class="fu">==</span> u</a>
+<a class="sourceLine" id="cb14-3" data-line-number="3">      <span class="kw">then</span> <span class="dt">ELet</span> loc x (renameFreeE (u,v) e1) e2</a>
+<a class="sourceLine" id="cb14-4" data-line-number="4">      <span class="kw">else</span> <span class="kw">if</span> x <span class="fu">/=</span> v</a>
+<a class="sourceLine" id="cb14-5" data-line-number="5">        <span class="kw">then</span> <span class="dt">ELet</span> loc x (renameFreeE (u,v) e1) (renameFreeE (u,v) e2)</a>
+<a class="sourceLine" id="cb14-6" data-line-number="6">        <span class="kw">else</span></a>
+<a class="sourceLine" id="cb14-7" data-line-number="7">          <span class="kw">let</span></a>
+<a class="sourceLine" id="cb14-8" data-line-number="8">            y <span class="fu">=</span> fresh</a>
+<a class="sourceLine" id="cb14-9" data-line-number="9">              [ S.fromList [u,v]</a>
+<a class="sourceLine" id="cb14-10" data-line-number="10">              , freeExprVarsE e1</a>
+<a class="sourceLine" id="cb14-11" data-line-number="11">              , freeExprVarsE e2 ]</a>
+<a class="sourceLine" id="cb14-12" data-line-number="12">          <span class="kw">in</span></a>
+<a class="sourceLine" id="cb14-13" data-line-number="13">            <span class="dt">ELet</span> loc y</a>
+<a class="sourceLine" id="cb14-14" data-line-number="14">              (renameFreeE (u,v) e1)</a>
+<a class="sourceLine" id="cb14-15" data-line-number="15">              (renameFreeE (u,v) <span class="fu">$</span> renameFreeE (x,y) e2)</a></code></pre></div>
+<p>Let expressions are also interesting; note the similarity to the lambda case. If <span class="math inline">\(u\)</span> matches the variable at the binding site, then there are no free occurrences of <span class="math inline">\(u\)</span> in <span class="math inline">\(e_2\)</span>, but <span class="math inline">\(u\)</span> is not bound in <span class="math inline">\(e_1\)</span>, so we have to rename it there. If <span class="math inline">\(v\)</span> doesn’t match <span class="math inline">\(x\)</span>, we can rename <span class="math inline">\(u\)</span> without capturing any free variables. If <span class="math inline">\(v\)</span> does match <span class="math inline">\(x\)</span>, then we need to rename <span class="math inline">\(x\)</span> to something other than <span class="math inline">\(u\)</span> and <span class="math inline">\(v\)</span> that won’t capture any other free variables in <span class="math inline">\(e\)</span>.</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb15-1" data-line-number="1">  <span class="dt">EApp</span> <span class="fu">!</span>loc e1 e2 <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb15-2" data-line-number="2">    <span class="dt">EApp</span> loc (renameFreeE (u,v) e1) (renameFreeE (u,v) e2)</a></code></pre></div>
+<p>Application expressions don’t bind any variables, so we can just recursively rename.</p>
+<p>With <code>renameFreeE</code> in hand, we’re now prepared to define equality for <code>Expr</code>s in a way that accounts for different dummy variable names. We’ll do this by pattern matching on the form of the expressions. In all cases we don’t care about the <code>Loc</code> parameter.</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb16-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">Eq</span> <span class="dt">Expr</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb16-2" data-line-number="2">  e1 <span class="fu">==</span> e2 <span class="fu">=</span> <span class="kw">case</span> (e1,e2) <span class="kw">of</span></a>
+<a class="sourceLine" id="cb16-3" data-line-number="3">    (<span class="dt">ECon</span> <span class="fu">!</span>loc1 c1, <span class="dt">ECon</span> <span class="fu">!</span>loc2 c2) <span class="ot">-&gt;</span> c1 <span class="fu">==</span> c2</a>
+<a class="sourceLine" id="cb16-4" data-line-number="4">    (<span class="dt">EVar</span> <span class="fu">!</span>loc1 x1, <span class="dt">EVar</span> <span class="fu">!</span>loc2 x2) <span class="ot">-&gt;</span> x1 <span class="fu">==</span> x2</a></code></pre></div>
+<p>Both constants and variables can be checked for equality syntactically; remember that “top level” variables are free.</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb17-1" data-line-number="1">    (<span class="dt">ELam</span> <span class="fu">!</span>loc1 x1 e1, <span class="dt">ELam</span> <span class="fu">!</span>loc2 x2 e2) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb17-2" data-line-number="2">      <span class="kw">if</span> x1 <span class="fu">==</span> x2</a>
+<a class="sourceLine" id="cb17-3" data-line-number="3">        <span class="kw">then</span> e1 <span class="fu">==</span> e2</a>
+<a class="sourceLine" id="cb17-4" data-line-number="4">        <span class="kw">else</span></a>
+<a class="sourceLine" id="cb17-5" data-line-number="5">          <span class="kw">let</span></a>
+<a class="sourceLine" id="cb17-6" data-line-number="6">            y <span class="fu">=</span> fresh</a>
+<a class="sourceLine" id="cb17-7" data-line-number="7">              [ freeExprVarsE e1</a>
+<a class="sourceLine" id="cb17-8" data-line-number="8">              , freeExprVarsE e2 ]</a>
+<a class="sourceLine" id="cb17-9" data-line-number="9">          <span class="kw">in</span></a>
+<a class="sourceLine" id="cb17-10" data-line-number="10">            (renameFreeE (x1,y) e1) <span class="fu">==</span> (renameFreeE (x2,y) e2)</a></code></pre></div>
+<p>If two lambda expressions use the same dummy variable, we can just check that their subexpressions are equal. If they have different dummy variables, though, we need to rename them to some common variable. The new variable name (<span class="math inline">\(y\)</span> here) should not be free in either <span class="math inline">\(e_1\)</span> or <span class="math inline">\(e_2\)</span>, to prevent any free variables in the subexpressions from becoming bound.</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb18-1" data-line-number="1">    (<span class="dt">ELet</span> <span class="fu">!</span>loc1 x1 e1 f1, <span class="dt">ELet</span> <span class="fu">!</span>loc2 x2 e2 f2) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb18-2" data-line-number="2">      (<span class="fu">==</span>)</a>
+<a class="sourceLine" id="cb18-3" data-line-number="3">        (<span class="dt">EApp</span> loc1 (<span class="dt">ELam</span> loc1 x1 f1) e1)</a>
+<a class="sourceLine" id="cb18-4" data-line-number="4">        (<span class="dt">EApp</span> loc2 (<span class="dt">ELam</span> loc2 x2 f2) e2)</a></code></pre></div>
+<p>For let expressions, we can use the equivalence <span class="math display">\[\mathsf{let}\ x = e_1\ \mathsf{in}\ e_2 \Leftrightarrow (\lambda x . e_2)e_1.\]</span> Unlike the other recurrences in this definition, this one doesn’t explicitly recurse on a smaller expression; however, it does recurse on an expression with strictly fewer <code>ELet</code> nodes, which is good enough to ensure it eventually terminates.</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb19-1" data-line-number="1">    (<span class="dt">EApp</span> <span class="fu">!</span>loc1 e1 f1, <span class="dt">EApp</span> <span class="fu">!</span>loc2 e2 f2) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb19-2" data-line-number="2">      (e1 <span class="fu">==</span> e2) <span class="fu">&amp;&amp;</span> (f1 <span class="fu">==</span> f2)</a></code></pre></div>
+<p>Application expressions don’t bind any variables, so we can just recursively compare each branch.</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb20-1" data-line-number="1">    _ <span class="ot">-&gt;</span> <span class="dt">False</span></a></code></pre></div>
+<p>And no other pairs of expressions are equal.</p>
+<p>Equality on expressions should be “up to a hygienic renaming of bound variables”; that is, we should be able to rename bound variables in a capture-avoiding way and get an “equal” expression.</p>
+<p>We can test this with some specific cases.</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb21-1" data-line-number="1"><span class="ot">test_cases_expr_eq ::</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb21-2" data-line-number="2">test_cases_expr_eq <span class="fu">=</span> and</a>
+<a class="sourceLine" id="cb21-3" data-line-number="3">  [ (<span class="fu">==</span>)</a>
+<a class="sourceLine" id="cb21-4" data-line-number="4">     (<span class="dt">ELam</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)))</a>
+<a class="sourceLine" id="cb21-5" data-line-number="5">     (<span class="dt">ELam</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)))</a>
+<a class="sourceLine" id="cb21-6" data-line-number="6"></a>
+<a class="sourceLine" id="cb21-7" data-line-number="7">  , (<span class="fu">==</span>)</a>
+<a class="sourceLine" id="cb21-8" data-line-number="8">     (<span class="dt">ELet</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)</a>
+<a class="sourceLine" id="cb21-9" data-line-number="9">       (<span class="dt">EApp</span> <span class="dt">Q</span> (<span class="dt">ECon</span> <span class="dt">Q</span> (<span class="dt">Con</span> <span class="st">&quot;c&quot;</span>)) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)))</a>
+<a class="sourceLine" id="cb21-10" data-line-number="10">       (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)))</a>
+<a class="sourceLine" id="cb21-11" data-line-number="11">     (<span class="dt">ELet</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)</a>
+<a class="sourceLine" id="cb21-12" data-line-number="12">       (<span class="dt">EApp</span> <span class="dt">Q</span> (<span class="dt">ECon</span> <span class="dt">Q</span> (<span class="dt">Con</span> <span class="st">&quot;c&quot;</span>)) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)))</a>
+<a class="sourceLine" id="cb21-13" data-line-number="13">       (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)))</a>
+<a class="sourceLine" id="cb21-14" data-line-number="14"></a>
+<a class="sourceLine" id="cb21-15" data-line-number="15">  , (<span class="fu">/=</span>)</a>
+<a class="sourceLine" id="cb21-16" data-line-number="16">     (<span class="dt">ELet</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)</a>
+<a class="sourceLine" id="cb21-17" data-line-number="17">       (<span class="dt">EApp</span> <span class="dt">Q</span> (<span class="dt">ECon</span> <span class="dt">Q</span> (<span class="dt">Con</span> <span class="st">&quot;c&quot;</span>)) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)))</a>
+<a class="sourceLine" id="cb21-18" data-line-number="18">       (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)))</a>
+<a class="sourceLine" id="cb21-19" data-line-number="19">     (<span class="dt">ELet</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)</a>
+<a class="sourceLine" id="cb21-20" data-line-number="20">       (<span class="dt">EApp</span> <span class="dt">Q</span> (<span class="dt">ECon</span> <span class="dt">Q</span> (<span class="dt">Con</span> <span class="st">&quot;c&quot;</span>)) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)))</a>
+<a class="sourceLine" id="cb21-21" data-line-number="21">       (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)))</a>
+<a class="sourceLine" id="cb21-22" data-line-number="22">  ]</a></code></pre></div>
+<p>The difference between the last two cases is subtle; it’s important to understand why they should be true.</p>
+<p>We should also check that this implementation of equality is actually an equivalence relation.</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb22-1" data-line-number="1">test_eq_reflexive</a>
+<a class="sourceLine" id="cb22-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb22-3" data-line-number="3">test_eq_reflexive _ e <span class="fu">=</span></a>
+<a class="sourceLine" id="cb22-4" data-line-number="4">  e <span class="fu">==</span> e</a>
+<a class="sourceLine" id="cb22-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb22-6" data-line-number="6">test_eq_symmetric</a>
+<a class="sourceLine" id="cb22-7" data-line-number="7"><span class="ot">  ::</span> (<span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb22-8" data-line-number="8">test_eq_symmetric _ e1 e2 <span class="fu">=</span></a>
+<a class="sourceLine" id="cb22-9" data-line-number="9">  (e1 <span class="fu">==</span> e2) <span class="fu">==</span> (e2 <span class="fu">==</span> e1)</a>
+<a class="sourceLine" id="cb22-10" data-line-number="10"></a>
+<a class="sourceLine" id="cb22-11" data-line-number="11">test_eq_transitive</a>
+<a class="sourceLine" id="cb22-12" data-line-number="12"><span class="ot">  ::</span> (<span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb22-13" data-line-number="13">test_eq_transitive _ e1 e2 e3 <span class="fu">=</span></a>
+<a class="sourceLine" id="cb22-14" data-line-number="14">  <span class="kw">if</span> (e1 <span class="fu">==</span> e2) <span class="fu">&amp;&amp;</span> (e2 <span class="fu">==</span> e3) <span class="kw">then</span> e1 <span class="fu">==</span> e3 <span class="kw">else</span> <span class="dt">True</span></a></code></pre></div>
+<p>These tests, especially the symmetry and transitivity tests, are of dubious quality because it is very unlikely that our test case generator will produce pairs or triples of expressions that are all alpha equivalent. These should certainly pass if our implementation of equality is correct, but we shouldn’t feel too good about it if they don’t fail.</p>
+<p>We’ll also write a helper function that renames the <em>bound</em> variables in an expression. Renaming bound variables will work differently from renaming free ones; rather than saying “rename this specific free variable” we’ll say “make sure the bound variables in this expression do not appear in a given set”.</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb23-1" data-line-number="1"><span class="ot">renameBoundE ::</span> <span class="dt">S.Set</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="ot">-&gt;</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">Expr</span></a>
+<a class="sourceLine" id="cb23-2" data-line-number="2">renameBoundE avoid <span class="fu">=</span> \<span class="kw">case</span></a>
+<a class="sourceLine" id="cb23-3" data-line-number="3">  <span class="dt">ECon</span> <span class="fu">!</span>loc c <span class="ot">-&gt;</span> <span class="dt">ECon</span> loc c</a>
+<a class="sourceLine" id="cb23-4" data-line-number="4">  <span class="dt">EVar</span> <span class="fu">!</span>loc x <span class="ot">-&gt;</span> <span class="dt">EVar</span> loc x</a>
+<a class="sourceLine" id="cb23-5" data-line-number="5">  <span class="dt">ELam</span> <span class="fu">!</span>loc x e <span class="ot">-&gt;</span> <span class="kw">if</span> S.member x avoid</a>
+<a class="sourceLine" id="cb23-6" data-line-number="6">    <span class="kw">then</span></a>
+<a class="sourceLine" id="cb23-7" data-line-number="7">      <span class="kw">let</span> y <span class="fu">=</span> fresh [ avoid, freeExprVarsE e ] <span class="kw">in</span></a>
+<a class="sourceLine" id="cb23-8" data-line-number="8">      <span class="dt">ELam</span> loc y (renameBoundE avoid <span class="fu">$</span> renameFreeE (x,y) e)</a>
+<a class="sourceLine" id="cb23-9" data-line-number="9">    <span class="kw">else</span> <span class="dt">ELam</span> loc x (renameBoundE avoid e)</a>
+<a class="sourceLine" id="cb23-10" data-line-number="10">  <span class="dt">ELet</span> <span class="fu">!</span>loc x e1 e2 <span class="ot">-&gt;</span> <span class="kw">if</span> S.member x avoid</a>
+<a class="sourceLine" id="cb23-11" data-line-number="11">    <span class="kw">then</span></a>
+<a class="sourceLine" id="cb23-12" data-line-number="12">      <span class="kw">let</span> y <span class="fu">=</span> fresh [ avoid, freeExprVarsE e2 ] <span class="kw">in</span></a>
+<a class="sourceLine" id="cb23-13" data-line-number="13">      <span class="dt">ELet</span> loc y</a>
+<a class="sourceLine" id="cb23-14" data-line-number="14">        (renameBoundE avoid e1)</a>
+<a class="sourceLine" id="cb23-15" data-line-number="15">        (renameBoundE avoid <span class="fu">$</span> renameFreeE (x,y) e2)</a>
+<a class="sourceLine" id="cb23-16" data-line-number="16">    <span class="kw">else</span> <span class="dt">ELet</span> loc x (renameBoundE avoid e1) (renameBoundE avoid e2)</a>
+<a class="sourceLine" id="cb23-17" data-line-number="17">  <span class="dt">EApp</span> <span class="fu">!</span>loc e1 e2 <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb23-18" data-line-number="18">    <span class="dt">EApp</span> loc (renameBoundE avoid e1) (renameBoundE avoid e2)</a></code></pre></div>
+<h2 id="renaming">Renaming</h2>
+<p>On the way to defining alpha equivalence for lambda terms we introduced three helper functions: one to collect the free variables in an expression, one to safely rename a free variable, and one to rename the bound variables. These operations are crucial to detecting alpha equivalence correctly. They will also make sense for other kinds of objects. To better understand how renaming variables behaves, we’ll wrap them in a type class.</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb24-1" data-line-number="1"><span class="kw">class</span> <span class="dt">HasExprVars</span> t <span class="kw">where</span></a>
+<a class="sourceLine" id="cb24-2" data-line-number="2"><span class="ot">  freeExprVars ::</span> t <span class="ot">-&gt;</span> <span class="dt">S.Set</span> (<span class="dt">Var</span> <span class="dt">Expr</span>)</a>
+<a class="sourceLine" id="cb24-3" data-line-number="3"><span class="ot">  renameFreeExpr ::</span> (<span class="dt">Var</span> <span class="dt">Expr</span>, <span class="dt">Var</span> <span class="dt">Expr</span>) <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> t</a>
+<a class="sourceLine" id="cb24-4" data-line-number="4"><span class="ot">  renameBoundExpr ::</span> <span class="dt">S.Set</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> t</a>
+<a class="sourceLine" id="cb24-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb24-6" data-line-number="6"><span class="kw">instance</span> <span class="dt">HasExprVars</span> <span class="dt">Expr</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb24-7" data-line-number="7">  freeExprVars <span class="fu">=</span> freeExprVarsE</a>
+<a class="sourceLine" id="cb24-8" data-line-number="8">  renameFreeExpr <span class="fu">=</span> renameFreeE</a>
+<a class="sourceLine" id="cb24-9" data-line-number="9">  renameBoundExpr <span class="fu">=</span> renameBoundE</a></code></pre></div>
+<p>To be really useful a type class should satisfy at least one law, and <code>HasTypeVars</code> is no different. Let’s think about what properties these functions should satisfy.</p>
+<p>First, renaming a free variable removes it from the set of free variables.</p>
+<div class="sourceCode" id="cb25"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb25-1" data-line-number="1">test_exprvars_rename_free</a>
+<a class="sourceLine" id="cb25-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">HasExprVars</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">Var</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb25-3" data-line-number="3">test_exprvars_rename_free _ x t <span class="fu">=</span></a>
+<a class="sourceLine" id="cb25-4" data-line-number="4">  <span class="kw">let</span> y <span class="fu">=</span> fresh [ S.singleton x ] <span class="kw">in</span></a>
+<a class="sourceLine" id="cb25-5" data-line-number="5">  S.notMember x (freeExprVars <span class="fu">$</span> renameFreeExpr (x,y) t)</a></code></pre></div>
+<p>Renaming a free variable is a transposition, provided we rename to a variable that isn’t already free.</p>
+<div class="sourceCode" id="cb26"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb26-1" data-line-number="1">test_exprvars_rename_trans</a>
+<a class="sourceLine" id="cb26-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">HasExprVars</span> t, <span class="dt">Eq</span> t)</a>
+<a class="sourceLine" id="cb26-3" data-line-number="3">  <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">Var</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb26-4" data-line-number="4">test_exprvars_rename_trans _ x t <span class="fu">=</span></a>
+<a class="sourceLine" id="cb26-5" data-line-number="5">  <span class="kw">let</span> y <span class="fu">=</span> fresh [ freeExprVars t ] <span class="kw">in</span></a>
+<a class="sourceLine" id="cb26-6" data-line-number="6">  t <span class="fu">==</span> (renameFreeExpr (y,x) <span class="fu">$</span> renameFreeExpr (x,y) t)</a></code></pre></div>
+<p>Renaming the bound variables does not change the set of free variables.</p>
+<div class="sourceCode" id="cb27"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb27-1" data-line-number="1">test_exprvars_rename_bound</a>
+<a class="sourceLine" id="cb27-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">HasExprVars</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">S.Set</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb27-3" data-line-number="3">test_exprvars_rename_bound _ avoid t <span class="fu">=</span></a>
+<a class="sourceLine" id="cb27-4" data-line-number="4">  (freeExprVars t) <span class="fu">==</span> (freeExprVars <span class="fu">$</span> renameBoundExpr avoid t)</a></code></pre></div>
+<p>Renaming the bound variables yields an equal expression; this is the whole point of alpha equivalence.</p>
+<div class="sourceCode" id="cb28"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb28-1" data-line-number="1">test_exprvars_rename_eq</a>
+<a class="sourceLine" id="cb28-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">HasExprVars</span> t, <span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">S.Set</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb28-3" data-line-number="3">test_exprvars_rename_eq _ avoid t <span class="fu">=</span></a>
+<a class="sourceLine" id="cb28-4" data-line-number="4">  t <span class="fu">==</span> renameBoundExpr avoid t</a></code></pre></div>
+<p>Side note – these tests were very effective at helping me debug the variable renaming functions. :)</p>
+<h2 id="expression-substitution">Expression Substitution</h2>
+<p>It will be useful later to lift this business about variables to expression substitutions; we’ll do this pointwise.</p>
+<div class="sourceCode" id="cb29"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb29-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">HasExprVars</span> (<span class="dt">Sub</span> <span class="dt">Expr</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb29-2" data-line-number="2">  freeExprVars (<span class="dt">Sub</span> m) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb29-3" data-line-number="3">    S.unions <span class="fu">.</span> map freeExprVars <span class="fu">.</span> M.elems <span class="fu">$</span> m</a>
+<a class="sourceLine" id="cb29-4" data-line-number="4">  renameFreeExpr (u,v) (<span class="dt">Sub</span> m) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb29-5" data-line-number="5">    <span class="dt">Sub</span> <span class="fu">$</span> fmap (renameFreeExpr (u,v)) m</a>
+<a class="sourceLine" id="cb29-6" data-line-number="6">  renameBoundExpr avoid (<span class="dt">Sub</span> m) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb29-7" data-line-number="7">    <span class="dt">Sub</span> <span class="fu">$</span> fmap (renameBoundExpr avoid) m</a></code></pre></div>
+<p>It’s worth thinking about why it makes sense to rename bound variables in a substitution pointwise. Are variables in the support free or bound? Well, neither, really. ‘Free’ and ‘bound’ only make sense in the context of an expression grammar, and substitutions are… not that. We can think of a substitution as a transformation waiting to be performed on some other thing, and the variables in the support act kind of like binding sites for variables <em>there</em>, but they are neither free nor bound in the substitution itself.</p>
+<p>We also need an <code>Arbitrary</code> instance for expression substitutions.</p>
+<div class="sourceCode" id="cb30"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb30-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">Arbitrary</span> (<span class="dt">Sub</span> <span class="dt">Expr</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb30-2" data-line-number="2">  arbitrary <span class="fu">=</span> <span class="dt">Sub</span> <span class="fu">&lt;$&gt;</span> arbitrary</a>
+<a class="sourceLine" id="cb30-3" data-line-number="3">  shrink (<span class="dt">Sub</span> m) <span class="fu">=</span> map <span class="dt">Sub</span> <span class="fu">$</span> shrink m</a></code></pre></div>
+<p>We’ll be applying expression substitutions to a few different sorts of things, so we’ll wrap it in a type class. Again – symbolic operators are usually bad form in my opinion, but this is not meant for use in other projects and the symbols make expressing properties much more clear.</p>
+<div class="sourceCode" id="cb31"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb31-1" data-line-number="1"><span class="kw">class</span> <span class="dt">SubExpr</span> t <span class="kw">where</span></a>
+<a class="sourceLine" id="cb31-2" data-line-number="2"><span class="ot">  ($&gt;) ::</span> <span class="dt">Sub</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> t</a></code></pre></div>
+<p>Certainly we should be able to apply an expression substitution to an <code>Expr</code>. This should replace any free variables by their images under the substitution but leave bound variables alone.</p>
+<div class="sourceCode" id="cb32"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb32-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">SubExpr</span> <span class="dt">Expr</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb32-2" data-line-number="2">  s <span class="fu">$&gt;</span> e <span class="fu">=</span> <span class="kw">case</span> e <span class="kw">of</span></a>
+<a class="sourceLine" id="cb32-3" data-line-number="3">    <span class="dt">ECon</span> <span class="fu">!</span>loc c <span class="ot">-&gt;</span> <span class="dt">ECon</span> loc c</a></code></pre></div>
+<p>Constant expressions have no free variables to substitute. That seems clear.</p>
+<div class="sourceCode" id="cb33"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb33-1" data-line-number="1">    <span class="dt">EVar</span> <span class="fu">!</span>loc x <span class="ot">-&gt;</span> <span class="kw">case</span> applySub x s <span class="kw">of</span></a>
+<a class="sourceLine" id="cb33-2" data-line-number="2">      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">EVar</span> loc x</a>
+<a class="sourceLine" id="cb33-3" data-line-number="3">      <span class="dt">Just</span> e&#39; <span class="ot">-&gt;</span> e&#39;</a></code></pre></div>
+<p>Variable expressions are free, so we look up the image of the variable under the substitution. Remember that if <span class="math inline">\(s\)</span> does not explicitly move a variable, it implicitly acts like the identity.</p>
+<div class="sourceCode" id="cb34"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb34-1" data-line-number="1">    <span class="dt">ELam</span> <span class="fu">!</span>loc x e <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb34-2" data-line-number="2">      <span class="kw">let</span></a>
+<a class="sourceLine" id="cb34-3" data-line-number="3">        y <span class="fu">=</span> fresh</a>
+<a class="sourceLine" id="cb34-4" data-line-number="4">          [ S.singleton x</a>
+<a class="sourceLine" id="cb34-5" data-line-number="5">          , freeExprVars e</a>
+<a class="sourceLine" id="cb34-6" data-line-number="6">          , support s</a>
+<a class="sourceLine" id="cb34-7" data-line-number="7">          , freeExprVars s ]</a>
+<a class="sourceLine" id="cb34-8" data-line-number="8">      <span class="kw">in</span></a>
+<a class="sourceLine" id="cb34-9" data-line-number="9">        <span class="dt">ELam</span> loc y (s <span class="fu">$&gt;</span> renameFreeE (x,y) e)</a></code></pre></div>
+<p>As usual, lambda expressions are interesting. We recursively substitute on the subexpression, but we only want to apply the substitution to free variables. To avoid messing up any occurrences of the <em>bound</em> variable, we first rename it, making sure the new name does not clash with any free variables in the subexpression or any variables making an appearance in the substitution, either in the support or in the image. This is why we needed to implement <code>HasExprVars</code> for substitutions.</p>
+<div class="sourceCode" id="cb35"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb35-1" data-line-number="1">    <span class="dt">ELet</span> <span class="fu">!</span>loc x e1 e2 <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb35-2" data-line-number="2">      <span class="kw">let</span></a>
+<a class="sourceLine" id="cb35-3" data-line-number="3">        y <span class="fu">=</span> fresh</a>
+<a class="sourceLine" id="cb35-4" data-line-number="4">          [ S.singleton x</a>
+<a class="sourceLine" id="cb35-5" data-line-number="5">          , freeExprVars e2</a>
+<a class="sourceLine" id="cb35-6" data-line-number="6">          , support s</a>
+<a class="sourceLine" id="cb35-7" data-line-number="7">          , freeExprVars s ]</a>
+<a class="sourceLine" id="cb35-8" data-line-number="8">      <span class="kw">in</span></a>
+<a class="sourceLine" id="cb35-9" data-line-number="9">        <span class="dt">ELet</span> loc y (s <span class="fu">$&gt;</span> e1) (s <span class="fu">$&gt;</span> renameFreeE (x,y) e2)</a></code></pre></div>
+<p>Let expressions are similar to lambdas. We apply the substitution recursively, making sure to first rename the free occurrences of the dummy variable – but only in <code>e2</code>.</p>
+<div class="sourceCode" id="cb36"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb36-1" data-line-number="1">    <span class="dt">EApp</span> <span class="fu">!</span>loc e1 e2 <span class="ot">-&gt;</span> <span class="dt">EApp</span> loc (s <span class="fu">$&gt;</span> e1) (s <span class="fu">$&gt;</span> e2)</a></code></pre></div>
+<p>Again as usual, we substitute on an application expression by recursively substituting on each branch.</p>
+<p>This is getting pretty abstract. We should check that substitution does something reasonable with a test case. Here we rename free occurrences of <span class="math inline">\(x\)</span> to <span class="math inline">\(y\)</span>; note that the bound <span class="math inline">\(x\)</span> gets renamed, in this case to <span class="math inline">\(w\)</span>.</p>
+<div class="sourceCode" id="cb37"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb37-1" data-line-number="1"><span class="ot">test_cases_sub_expr ::</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb37-2" data-line-number="2">test_cases_sub_expr <span class="fu">=</span> and</a>
+<a class="sourceLine" id="cb37-3" data-line-number="3">  [ <span class="kw">let</span></a>
+<a class="sourceLine" id="cb37-4" data-line-number="4">      s <span class="fu">=</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>) <span class="fu">--&gt;</span> (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>))</a>
+<a class="sourceLine" id="cb37-5" data-line-number="5">      e1 <span class="fu">=</span> <span class="dt">ELam</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;z&quot;</span>)</a>
+<a class="sourceLine" id="cb37-6" data-line-number="6">             (<span class="dt">EApp</span> <span class="dt">Q</span></a>
+<a class="sourceLine" id="cb37-7" data-line-number="7">               (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>))</a>
+<a class="sourceLine" id="cb37-8" data-line-number="8">               (<span class="dt">ELam</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)</a>
+<a class="sourceLine" id="cb37-9" data-line-number="9">                 (<span class="dt">EApp</span> <span class="dt">Q</span> (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>))</a>
+<a class="sourceLine" id="cb37-10" data-line-number="10">                 (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)))))</a>
+<a class="sourceLine" id="cb37-11" data-line-number="11">      e2 <span class="fu">=</span> <span class="dt">ELam</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;z&quot;</span>)</a>
+<a class="sourceLine" id="cb37-12" data-line-number="12">             (<span class="dt">EApp</span> <span class="dt">Q</span></a>
+<a class="sourceLine" id="cb37-13" data-line-number="13">               (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>))</a>
+<a class="sourceLine" id="cb37-14" data-line-number="14">               (<span class="dt">ELam</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;w&quot;</span>)</a>
+<a class="sourceLine" id="cb37-15" data-line-number="15">                 (<span class="dt">EApp</span> <span class="dt">Q</span> (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>))</a>
+<a class="sourceLine" id="cb37-16" data-line-number="16">                 (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;w&quot;</span>)))))</a>
+<a class="sourceLine" id="cb37-17" data-line-number="17">    <span class="kw">in</span> s <span class="fu">$&gt;</span> e1 <span class="fu">==</span> e2</a>
+<a class="sourceLine" id="cb37-18" data-line-number="18">  ]</a></code></pre></div>
+<p>We can also apply one substitution to another “pointwise”.</p>
+<div class="sourceCode" id="cb38"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb38-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">SubExpr</span> (<span class="dt">Sub</span> <span class="dt">Expr</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb38-2" data-line-number="2">  s1 <span class="fu">$&gt;</span> (<span class="dt">Sub</span> m2) <span class="fu">=</span> <span class="dt">Sub</span> <span class="fu">$</span> fmap (s1 <span class="fu">$&gt;</span>) m2</a></code></pre></div>
+<p>Note that on substitutions, the <em>apply</em> operator is a sort of multiplication. It would be nice if that multiplication were associative – that is, if</p>
+<pre><code>s1 $&gt; (s2 $&gt; s3) == (s1 $&gt; s2) $&gt; s3</code></pre>
+<p>for all <code>s1</code>, <code>s2</code>, and <code>s3</code>. Even better is if, as a semigroup, the set of substitutions acted on the set of expressions by substitution. Unfortunately this is not the case. It’s not too hard to see a counterexample – think about what happens when <code>s2</code> is the empty substitution.</p>
+<p>But! This can be fixed with a small adjustment. Define a product on substitutions like so:</p>
+<div class="sourceCode" id="cb40"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb40-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">Semigroup</span> (<span class="dt">Sub</span> <span class="dt">Expr</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb40-2" data-line-number="2">  s1 <span class="fu">&lt;&gt;</span> s2 <span class="fu">=</span> (s1 <span class="fu">$&gt;</span> s2) <span class="fu">.&amp;</span> s1</a></code></pre></div>
+<p>Remember that <code>.&amp;</code> is the <em>augmentation</em> operator on substitutions; it augments <code>s1 $&gt; s2</code> with any additional mapping done by <code>s1</code>. Intuitively, <code>s1 &lt;&gt; s2</code> is a substitution such that if <code>x</code> is in the support of <code>s2</code>, it gets mapped to some expression by <code>s2</code>, to which <code>s1</code> is then applied, and if <code>x</code> is not in the support of <code>s2</code>, just <code>s1</code> is applied. That sounds an awful lot like we had first applied <code>s2</code> and then <code>s1</code>. And indeed, adding in the empty substitution,</p>
+<div class="sourceCode" id="cb41"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb41-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">Monoid</span> (<span class="dt">Sub</span> <span class="dt">Expr</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb41-2" data-line-number="2">  mempty <span class="fu">=</span> emptySub</a></code></pre></div>
+<p>We can check that <code>Sub Expr</code> satisfies the monoid laws.</p>
+<div class="sourceCode" id="cb42"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb42-1" data-line-number="1">test_monoid_identity</a>
+<a class="sourceLine" id="cb42-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">Eq</span> t, <span class="dt">Monoid</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb42-3" data-line-number="3">test_monoid_identity _ s <span class="fu">=</span> and</a>
+<a class="sourceLine" id="cb42-4" data-line-number="4">  [ s <span class="fu">==</span> mempty <span class="fu">&lt;&gt;</span> s</a>
+<a class="sourceLine" id="cb42-5" data-line-number="5">  , s <span class="fu">==</span> s <span class="fu">&lt;&gt;</span> mempty</a>
+<a class="sourceLine" id="cb42-6" data-line-number="6">  ]</a>
+<a class="sourceLine" id="cb42-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb42-8" data-line-number="8">test_monoid_associative</a>
+<a class="sourceLine" id="cb42-9" data-line-number="9"><span class="ot">  ::</span> (<span class="dt">Eq</span> t, <span class="dt">Monoid</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb42-10" data-line-number="10">test_monoid_associative _ s1 s2 s3 <span class="fu">=</span></a>
+<a class="sourceLine" id="cb42-11" data-line-number="11">  s1 <span class="fu">&lt;&gt;</span> (s2 <span class="fu">&lt;&gt;</span> s3) <span class="fu">==</span> (s1 <span class="fu">&lt;&gt;</span> s2) <span class="fu">&lt;&gt;</span> s3</a></code></pre></div>
+<p>And we can test that <code>$&gt;</code> is a monoid action.</p>
+<div class="sourceCode" id="cb43"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb43-1" data-line-number="1">test_subexpr_identity</a>
+<a class="sourceLine" id="cb43-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">Eq</span> t, <span class="dt">SubExpr</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb43-3" data-line-number="3">test_subexpr_identity _ t <span class="fu">=</span></a>
+<a class="sourceLine" id="cb43-4" data-line-number="4">  emptySub <span class="fu">$&gt;</span> t <span class="fu">==</span> t</a>
+<a class="sourceLine" id="cb43-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb43-6" data-line-number="6">test_subexpr_action</a>
+<a class="sourceLine" id="cb43-7" data-line-number="7"><span class="ot">  ::</span> (<span class="dt">Eq</span> t, <span class="dt">SubExpr</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">Sub</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb43-8" data-line-number="8">test_subexpr_action _ s1 s2 t <span class="fu">=</span></a>
+<a class="sourceLine" id="cb43-9" data-line-number="9">  s1 <span class="fu">$&gt;</span> (s2 <span class="fu">$&gt;</span> t) <span class="fu">==</span> (s1 <span class="fu">&lt;&gt;</span> s2) <span class="fu">$&gt;</span> t</a></code></pre></div>
+<p>Situations like this are where property checking really shines. A formal proof that <code>Sub Expr</code> is a monoid acting on <code>Expr</code> is possible, but tedious, and doesn’t guarantee our implementation is bug-free. But a property test with a good test case generator is devastatingly effective at finding bugs – and very satisfying when it passes.</p>
+<p>We’ll also need a utility for detecting when an expression substitution is trivial.</p>
+<div class="sourceCode" id="cb44"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb44-1" data-line-number="1"><span class="ot">trivialExprSub ::</span> <span class="dt">Sub</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb44-2" data-line-number="2">trivialExprSub (<span class="dt">Sub</span> m) <span class="fu">=</span> all isId <span class="fu">$</span> M.toList m</a>
+<a class="sourceLine" id="cb44-3" data-line-number="3">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb44-4" data-line-number="4"><span class="ot">    isId ::</span> (<span class="dt">Var</span> <span class="dt">Expr</span>, <span class="dt">Expr</span>) <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb44-5" data-line-number="5">    isId (x,e) <span class="fu">=</span> <span class="kw">case</span> e <span class="kw">of</span></a>
+<a class="sourceLine" id="cb44-6" data-line-number="6">      <span class="dt">EVar</span> _ y <span class="ot">-&gt;</span> x <span class="fu">==</span> y</a>
+<a class="sourceLine" id="cb44-7" data-line-number="7">      _ <span class="ot">-&gt;</span> <span class="dt">False</span></a></code></pre></div>
+<h2 id="matching">Matching</h2>
+<p>We need one last operation on expressions: matching. Given two expressions <span class="math inline">\(E_1\)</span> and <span class="math inline">\(E_2\)</span>, a <em>matching</em> is a substitution <span class="math inline">\(S\)</span> such that <span class="math inline">\(S \cdot E_1 = E_2\)</span>. Matching will be handy later when we have an equation of lambda expressions that we’d like to treat as a rewrite rule; if <span class="math inline">\(E_1 = F_1\)</span>, and if <span class="math inline">\(S \cdot E_1 = E_2\)</span>, then we should have <span class="math inline">\(E_2 = S \cdot F_2\)</span>. The matching algorithm will try to find <span class="math inline">\(S\)</span> given <span class="math inline">\(E_1\)</span> and <span class="math inline">\(E_2\)</span>.</p>
+<p>Matching is different from the algorithms we’ve seen so far; we’re effectively solving for a substitution. Remember that substitutions only operate on the <em>free</em> variables in an expression. So in a recursive strategy we’ll need to keep track of which variables have been bound somewhere in the “outer expression”. This means our matching strategy will need to carry some additional state that we didn’t need when applying substitutions or deciding alpha equivalence. We’ll achieve this by defining <code>matchExpr</code> in terms of a helper function, <code>matchExprInContext</code>, which takes as an additional argument a set of bound variables.</p>
+<div class="sourceCode" id="cb45"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb45-1" data-line-number="1"><span class="ot">matchExpr ::</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">Sub</span> <span class="dt">Expr</span>)</a>
+<a class="sourceLine" id="cb45-2" data-line-number="2">matchExpr <span class="fu">=</span> matchExprInContext S.empty</a></code></pre></div>
+<p>We start out with an empty context; no variables have been bound.</p>
+<div class="sourceCode" id="cb46"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb46-1" data-line-number="1">matchExprInContext</a>
+<a class="sourceLine" id="cb46-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">S.Set</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="ot">-&gt;</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">Sub</span> <span class="dt">Expr</span>)</a>
+<a class="sourceLine" id="cb46-3" data-line-number="3">matchExprInContext bound u1 u2 <span class="fu">=</span> <span class="kw">case</span> (u1,u2) <span class="kw">of</span></a>
+<a class="sourceLine" id="cb46-4" data-line-number="4">  (<span class="dt">ECon</span> <span class="fu">!</span>loc1 c1, <span class="dt">ECon</span> <span class="fu">!</span>loc2 c2) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb46-5" data-line-number="5">    <span class="kw">if</span> c1 <span class="fu">==</span> c2</a>
+<a class="sourceLine" id="cb46-6" data-line-number="6">      <span class="kw">then</span> <span class="dt">Just</span> mempty</a>
+<a class="sourceLine" id="cb46-7" data-line-number="7">      <span class="kw">else</span> <span class="dt">Nothing</span></a></code></pre></div>
+<p>One constant expression can be substituted to another precisely when the constants are identical, and in this case the empty substitution achieves this. In fact <em>any</em> substitution would transform a constant to itself; but we can’t use just any substitution here. We have a context of bound variables, and the substitution shouldn’t cause any free variables to become bound. We will also eventually combine this substitution with others, so it needs to be as general as possible.</p>
+<div class="sourceCode" id="cb47"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb47-1" data-line-number="1">  (<span class="dt">EVar</span> <span class="fu">!</span>loc1 x, e) <span class="ot">-&gt;</span> <span class="kw">if</span> S.member x bound</a>
+<a class="sourceLine" id="cb47-2" data-line-number="2">    <span class="kw">then</span> <span class="kw">case</span> e <span class="kw">of</span></a>
+<a class="sourceLine" id="cb47-3" data-line-number="3">      <span class="dt">EVar</span> _ y <span class="ot">-&gt;</span> <span class="kw">if</span> x <span class="fu">==</span> y</a>
+<a class="sourceLine" id="cb47-4" data-line-number="4">        <span class="kw">then</span> <span class="dt">Just</span> mempty</a>
+<a class="sourceLine" id="cb47-5" data-line-number="5">        <span class="kw">else</span> <span class="dt">Nothing</span></a>
+<a class="sourceLine" id="cb47-6" data-line-number="6">      _ <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a>
+<a class="sourceLine" id="cb47-7" data-line-number="7">    <span class="kw">else</span> <span class="kw">if</span> S.disjoint bound (freeExprVars e)</a>
+<a class="sourceLine" id="cb47-8" data-line-number="8">      <span class="kw">then</span> <span class="dt">Just</span> (x <span class="fu">--&gt;</span> e)</a>
+<a class="sourceLine" id="cb47-9" data-line-number="9">      <span class="kw">else</span> <span class="dt">Nothing</span></a></code></pre></div>
+<p>Variable expressions are where matching happens. Naively, variables match anything – but we need to be careful with the binding context.</p>
+<p>If <span class="math inline">\(x\)</span> is bound in context, and we try to substitute an identical variable, then the empty substitution is a matching. If <span class="math inline">\(x\)</span> is bound in context and <span class="math inline">\(e\)</span> is <em>not</em> an identical variable, then no substitution can take <span class="math inline">\(x\)</span> to <span class="math inline">\(e\)</span> because <span class="math inline">\(x\)</span> is not free.</p>
+<p>If <span class="math inline">\(x\)</span> is free in context, then we can simply substitute <span class="math inline">\(x \mapsto e\)</span> provided no free variables in <span class="math inline">\(e\)</span> become bound in context. If they do, no substitution works. In this case we might complain that the bound variables that clash with free variables in <span class="math inline">\(e\)</span> could just be renamed. But we can’t reach back into the superexpression and retroactively change the name of a bound variable. Instead, we’ll have to rely on the binding sites above this node in the expression tree to have already renamed their bound variables to avoid capturing free variables in <span class="math inline">\(e\)</span>.</p>
+<div class="sourceCode" id="cb48"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb48-1" data-line-number="1">  (<span class="dt">ELam</span> <span class="fu">!</span>loc1 x1 e1, <span class="dt">ELam</span> <span class="fu">!</span>loc2 x2 e2) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb48-2" data-line-number="2">    <span class="kw">if</span> x1 <span class="fu">==</span> x2</a>
+<a class="sourceLine" id="cb48-3" data-line-number="3">      <span class="kw">then</span> matchExprInContext (S.insert x1 bound) e1 e2</a>
+<a class="sourceLine" id="cb48-4" data-line-number="4">      <span class="kw">else</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb48-5" data-line-number="5">        <span class="kw">let</span> y <span class="fu">=</span> fresh [bound, freeExprVars e1, freeExprVars e2]</a>
+<a class="sourceLine" id="cb48-6" data-line-number="6">        matchExprInContext</a>
+<a class="sourceLine" id="cb48-7" data-line-number="7">          (S.insert y bound)</a>
+<a class="sourceLine" id="cb48-8" data-line-number="8">          (renameFreeE (x1,y) e1)</a>
+<a class="sourceLine" id="cb48-9" data-line-number="9">          (renameFreeE (x2,y) e2)</a></code></pre></div>
+<p>Lambda… if the two lambda terms use exactly the same dummy variable, then we add that variable to the bound context and recursively match on the subexpressions. If the dummy variables are not identical then we rename them to some <span class="math inline">\(y\)</span> <em>that doesn’t capture any free variables in either subexpression</em> and then recurse. This is how we account for the need to avoid variable capture when matching free variables.</p>
+<p>We also make sure <span class="math inline">\(y\)</span> doesn’t clash with a variable that’s already been bound; this part isn’t strictly necessary because of the way bound variable name clashes resolve, but it makes me feel better.</p>
+<div class="sourceCode" id="cb49"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb49-1" data-line-number="1">  (<span class="dt">ELet</span> <span class="fu">!</span>loc1 x1 e1 f1, <span class="dt">ELet</span> <span class="fu">!</span>loc2 x2 e2 f2) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb49-2" data-line-number="2">    matchExprInContext bound</a>
+<a class="sourceLine" id="cb49-3" data-line-number="3">      (<span class="dt">EApp</span> loc1 (<span class="dt">ELam</span> loc1 x1 f1) e1)</a>
+<a class="sourceLine" id="cb49-4" data-line-number="4">      (<span class="dt">EApp</span> loc2 (<span class="dt">ELam</span> loc2 x2 f2) e2)</a></code></pre></div>
+<p>For let expressions, we can take advantage of the lambda equivalent expression. Again, this is not strictly recursion on a smaller expression, but it is recursion on an expression with strictly fewer let terms.</p>
+<div class="sourceCode" id="cb50"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb50-1" data-line-number="1">  (<span class="dt">EApp</span> <span class="fu">!</span>loc1 e1 f1, <span class="dt">EApp</span> <span class="fu">!</span>loc2 e2 f2) <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb50-2" data-line-number="2">    s1 <span class="ot">&lt;-</span> matchExprInContext bound e1 e2</a>
+<a class="sourceLine" id="cb50-3" data-line-number="3">    s2 <span class="ot">&lt;-</span> matchExprInContext bound f1 f2</a>
+<a class="sourceLine" id="cb50-4" data-line-number="4">    unionSub s1 s2</a></code></pre></div>
+<p>For application terms we can match each branch independently and union them together. Recall that <code>unionSub</code> returns <code>Nothing</code> if we give it incompatible substitutions, which in this case corresponds to a free variable that “matches” two distinct subexpressions.</p>
+<div class="sourceCode" id="cb51"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb51-1" data-line-number="1">  _ <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a></code></pre></div>
+<p>No other pairs of expressions match.</p>
+<p>Let’s check our intuition about matching with some test cases. Keep in mind that if matching succeeds against expressions <span class="math inline">\(E_1\)</span> and <span class="math inline">\(E_2\)</span>, the result is a substitution <span class="math inline">\(S\)</span> such that <span class="math inline">\(S \cdot E_1 = E_2\)</span>.</p>
+<p>This example matches against a single variable. The notation is tedious to follow, but the two expressions here are <span class="math inline">\(x\)</span> and <span class="math inline">\(yz\)</span>.</p>
+<div class="sourceCode" id="cb52"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb52-1" data-line-number="1"><span class="ot">test_cases_expr_match ::</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb52-2" data-line-number="2">test_cases_expr_match <span class="fu">=</span> and</a>
+<a class="sourceLine" id="cb52-3" data-line-number="3">  [ (<span class="fu">==</span>)</a>
+<a class="sourceLine" id="cb52-4" data-line-number="4">      (matchExpr</a>
+<a class="sourceLine" id="cb52-5" data-line-number="5">        (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>))</a>
+<a class="sourceLine" id="cb52-6" data-line-number="6">        (<span class="dt">EApp</span> <span class="dt">Q</span> (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;z&quot;</span>))))</a>
+<a class="sourceLine" id="cb52-7" data-line-number="7">      (<span class="dt">Just</span> <span class="fu">$</span> <span class="dt">Sub</span> <span class="fu">$</span> M.fromList</a>
+<a class="sourceLine" id="cb52-8" data-line-number="8">        [ (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>, <span class="dt">EApp</span> <span class="dt">Q</span> (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;z&quot;</span>)))</a>
+<a class="sourceLine" id="cb52-9" data-line-number="9">        ])</a></code></pre></div>
+<p>This example matches two lambda expressions with different dummy variables: <span class="math inline">\(\lambda x . yx\)</span> and <span class="math inline">\(\lambda p . zp\)</span>.</p>
+<div class="sourceCode" id="cb53"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb53-1" data-line-number="1">  , (<span class="fu">==</span>)</a>
+<a class="sourceLine" id="cb53-2" data-line-number="2">      (matchExpr</a>
+<a class="sourceLine" id="cb53-3" data-line-number="3">        (<span class="dt">ELam</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)</a>
+<a class="sourceLine" id="cb53-4" data-line-number="4">          (<span class="dt">EApp</span> <span class="dt">Q</span> (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>))))</a>
+<a class="sourceLine" id="cb53-5" data-line-number="5">        (<span class="dt">ELam</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>)</a>
+<a class="sourceLine" id="cb53-6" data-line-number="6">          (<span class="dt">EApp</span> <span class="dt">Q</span> (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;z&quot;</span>)) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>)))))</a>
+<a class="sourceLine" id="cb53-7" data-line-number="7">      (<span class="dt">Just</span> <span class="fu">$</span> <span class="dt">Sub</span> <span class="fu">$</span> M.fromList</a>
+<a class="sourceLine" id="cb53-8" data-line-number="8">        [ (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>, <span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;z&quot;</span>))</a>
+<a class="sourceLine" id="cb53-9" data-line-number="9">        ])</a></code></pre></div>
+<p>This example matches two different occurrences of the same free variable: in <span class="math inline">\(x(\lambda y . x)\)</span> against <span class="math inline">\(c(\lambda z . c)\)</span>, where <span class="math inline">\(c\)</span> is a constant.</p>
+<div class="sourceCode" id="cb54"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb54-1" data-line-number="1">  , (<span class="fu">==</span>)</a>
+<a class="sourceLine" id="cb54-2" data-line-number="2">      (matchExpr</a>
+<a class="sourceLine" id="cb54-3" data-line-number="3">        (<span class="dt">EApp</span> <span class="dt">Q</span></a>
+<a class="sourceLine" id="cb54-4" data-line-number="4">          (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>))</a>
+<a class="sourceLine" id="cb54-5" data-line-number="5">          (<span class="dt">ELam</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>))))</a>
+<a class="sourceLine" id="cb54-6" data-line-number="6">        (<span class="dt">EApp</span> <span class="dt">Q</span></a>
+<a class="sourceLine" id="cb54-7" data-line-number="7">          (<span class="dt">ECon</span> <span class="dt">Q</span> (<span class="dt">Con</span> <span class="st">&quot;c&quot;</span>))</a>
+<a class="sourceLine" id="cb54-8" data-line-number="8">          (<span class="dt">ELam</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;z&quot;</span>) (<span class="dt">ECon</span> <span class="dt">Q</span> (<span class="dt">Con</span> <span class="st">&quot;c&quot;</span>)))))</a>
+<a class="sourceLine" id="cb54-9" data-line-number="9">      (<span class="dt">Just</span> <span class="fu">$</span> <span class="dt">Sub</span> <span class="fu">$</span> M.fromList</a>
+<a class="sourceLine" id="cb54-10" data-line-number="10">        [ (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>, <span class="dt">ECon</span> <span class="dt">Q</span> (<span class="dt">Con</span> <span class="st">&quot;c&quot;</span>))</a>
+<a class="sourceLine" id="cb54-11" data-line-number="11">        ])</a></code></pre></div>
+<p>This example matches two different occurrences of the same free variable, but this time the matches are not compatible: <span class="math inline">\(x(\lambda y . x)\)</span> and <span class="math inline">\(c(\lambda z . d)\)</span>, where <span class="math inline">\(c\)</span> and <span class="math inline">\(d\)</span> are distinct constants.</p>
+<div class="sourceCode" id="cb55"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb55-1" data-line-number="1">  , (<span class="fu">==</span>)</a>
+<a class="sourceLine" id="cb55-2" data-line-number="2">      (matchExpr</a>
+<a class="sourceLine" id="cb55-3" data-line-number="3">        (<span class="dt">EApp</span> <span class="dt">Q</span></a>
+<a class="sourceLine" id="cb55-4" data-line-number="4">          (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>))</a>
+<a class="sourceLine" id="cb55-5" data-line-number="5">          (<span class="dt">ELam</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>))))</a>
+<a class="sourceLine" id="cb55-6" data-line-number="6">        (<span class="dt">EApp</span> <span class="dt">Q</span></a>
+<a class="sourceLine" id="cb55-7" data-line-number="7">          (<span class="dt">ECon</span> <span class="dt">Q</span> (<span class="dt">Con</span> <span class="st">&quot;c&quot;</span>))</a>
+<a class="sourceLine" id="cb55-8" data-line-number="8">          (<span class="dt">ELam</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;z&quot;</span>) (<span class="dt">ECon</span> <span class="dt">Q</span> (<span class="dt">Con</span> <span class="st">&quot;d&quot;</span>)))))</a>
+<a class="sourceLine" id="cb55-9" data-line-number="9">      <span class="dt">Nothing</span></a></code></pre></div>
+<p>This example attempts to match the identity function with a constant function: <span class="math inline">\(\lambda x . y\)</span> and <span class="math inline">\(\lambda x . x\)</span>. This pair showed up often as a counterexample while debugging.</p>
+<div class="sourceCode" id="cb56"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb56-1" data-line-number="1">  , (<span class="fu">==</span>)</a>
+<a class="sourceLine" id="cb56-2" data-line-number="2">      (matchExpr</a>
+<a class="sourceLine" id="cb56-3" data-line-number="3">        (<span class="dt">ELam</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)))</a>
+<a class="sourceLine" id="cb56-4" data-line-number="4">        (<span class="dt">ELam</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>))))</a>
+<a class="sourceLine" id="cb56-5" data-line-number="5">      <span class="dt">Nothing</span></a>
+<a class="sourceLine" id="cb56-6" data-line-number="6">  ]</a></code></pre></div>
+<p>Because matching is defined abstractly as the solution to an equation – specifically, <span class="math inline">\(S \cdot E_1 = E_2\)</span> – we have some natural property tests. First, we can verify that any substitutions returned by matching satisfies this equation.</p>
+<div class="sourceCode" id="cb57"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb57-1" data-line-number="1">test_expr_match_sub</a>
+<a class="sourceLine" id="cb57-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb57-3" data-line-number="3">test_expr_match_sub e1 e2 <span class="fu">=</span></a>
+<a class="sourceLine" id="cb57-4" data-line-number="4">  <span class="kw">case</span> matchExpr e1 e2 <span class="kw">of</span></a>
+<a class="sourceLine" id="cb57-5" data-line-number="5">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">True</span></a>
+<a class="sourceLine" id="cb57-6" data-line-number="6">    <span class="dt">Just</span> s <span class="ot">-&gt;</span> e2 <span class="fu">==</span> s <span class="fu">$&gt;</span> e1</a></code></pre></div>
+<p>Matching should also be “transitive” in the sense that if <span class="math inline">\(S \cdot E_1 = E_2\)</span> and <span class="math inline">\(T \cdot E_2 = E_3\)</span>, then <span class="math inline">\(TS \cdot E_1 = E_3\)</span>.</p>
+<div class="sourceCode" id="cb58"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb58-1" data-line-number="1">test_expr_match_transitive</a>
+<a class="sourceLine" id="cb58-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb58-3" data-line-number="3">test_expr_match_transitive e1 e2 e3 <span class="fu">=</span></a>
+<a class="sourceLine" id="cb58-4" data-line-number="4">  <span class="kw">case</span> (matchExpr e1 e2, matchExpr e2 e3) <span class="kw">of</span></a>
+<a class="sourceLine" id="cb58-5" data-line-number="5">    (<span class="dt">Just</span> s1, <span class="dt">Just</span> s2) <span class="ot">-&gt;</span> e3 <span class="fu">==</span> (s2 <span class="fu">&lt;&gt;</span> s1) <span class="fu">$&gt;</span> e1</a>
+<a class="sourceLine" id="cb58-6" data-line-number="6">    _ <span class="ot">-&gt;</span> <span class="dt">True</span></a></code></pre></div>
+<p>Those two properties are decent as canaries; they should definitely pass if our implementation of match is correct. They have a significant downside though – the vast majority of pairs of expressions do not match, and the probability of a match falls of quickly as the expressions get bigger. So most of the test cases they generate will give us no information.</p>
+<p>Another way to check matching is to give it two expressions we’ve cooked up to match. The simplest thing I can think of is to match an expression against itself. This should always succeed, and moreover, should succeed with a trivial substitution.</p>
+<div class="sourceCode" id="cb59"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb59-1" data-line-number="1">test_expr_match_self</a>
+<a class="sourceLine" id="cb59-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb59-3" data-line-number="3">test_expr_match_self e <span class="fu">=</span></a>
+<a class="sourceLine" id="cb59-4" data-line-number="4">  <span class="kw">case</span> matchExpr e e <span class="kw">of</span></a>
+<a class="sourceLine" id="cb59-5" data-line-number="5">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">False</span></a>
+<a class="sourceLine" id="cb59-6" data-line-number="6">    <span class="dt">Just</span> s <span class="ot">-&gt;</span> trivialExprSub s</a></code></pre></div>
+<p>Note that we use the predicate <code>trivialExprSub</code> here, rather than checking that <span class="math inline">\(s\)</span> is literally the empty substitution. This is because of the recursive way in which matching is done; in particular, on the application form. In addition to keeping track of what variables get mapped to, we have to keep track of which variables have been seen, to avoid unioning incompatible substitutions.</p>
+<p>For another test, every expression should match itself via a trivial substitution after we rename the bound variables.</p>
+<div class="sourceCode" id="cb60"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb60-1" data-line-number="1">test_expr_match_rename</a>
+<a class="sourceLine" id="cb60-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">S.Set</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="ot">-&gt;</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb60-3" data-line-number="3">test_expr_match_rename avoid e <span class="fu">=</span></a>
+<a class="sourceLine" id="cb60-4" data-line-number="4">  <span class="kw">case</span> matchExpr e (renameBoundExpr avoid e) <span class="kw">of</span></a>
+<a class="sourceLine" id="cb60-5" data-line-number="5">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">False</span></a>
+<a class="sourceLine" id="cb60-6" data-line-number="6">    <span class="dt">Just</span> s <span class="ot">-&gt;</span> trivialExprSub s</a></code></pre></div>
+<p>Another pair of expressions that should always match are <span class="math inline">\(E\)</span> and <span class="math inline">\(S \cdot E\)</span> for some expression <span class="math inline">\(E\)</span> and substitution <span class="math inline">\(S\)</span>. One caveat is that in general, the substitution that match finds will not necessarily be equal to <span class="math inline">\(T\)</span>; for instance, the support of <span class="math inline">\(S\)</span> might include variables that aren’t free in <span class="math inline">\(E\)</span>. But we should have <span class="math inline">\(S \cdot E = T \cdot E\)</span>.</p>
+<div class="sourceCode" id="cb61"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb61-1" data-line-number="1">test_expr_sub_match</a>
+<a class="sourceLine" id="cb61-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">Sub</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb61-3" data-line-number="3">test_expr_sub_match s1 e <span class="fu">=</span></a>
+<a class="sourceLine" id="cb61-4" data-line-number="4">  <span class="kw">case</span> matchExpr e (s1 <span class="fu">$&gt;</span> e) <span class="kw">of</span></a>
+<a class="sourceLine" id="cb61-5" data-line-number="5">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">False</span></a>
+<a class="sourceLine" id="cb61-6" data-line-number="6">    <span class="dt">Just</span> s2 <span class="ot">-&gt;</span> (s2 <span class="fu">$&gt;</span> e) <span class="fu">==</span> (s1 <span class="fu">$&gt;</span> e)</a></code></pre></div>
+<p>This test has the advantage that it doesn’t generate useless cases.</p>
+<h2 id="recap">Recap</h2>
+<p>So far we’ve developed a grammar for lambda calculus with let bindings. We’ve defined what it means for a variable in a lambda expression to be <em>free</em> or <em>bound</em>, and have defined helpers for renaming the free and bound variables in an expression. We can <em>apply</em> a variable substitution to an expression, and given two expressions, can construct a substitution taking one to the other if such a thing exists.</p>
+<p>Next we will develop a grammar of <em>types</em> and see how it is possible to efficiently assign a type to some lambda expressions.</p>
+</body>
+</html>

@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Judgements</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+  <style type="text/css">
+a.sourceLine { display: inline-block; line-height: 1.25; }
+a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
+a.sourceLine:empty { height: 1.2em; position: absolute; }
+.sourceCode { overflow: visible; }
+code.sourceCode { white-space: pre; position: relative; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+code.sourceCode { white-space: pre-wrap; }
+a.sourceLine { text-indent: -1em; padding-left: 1em; }
+}
+pre.numberSource a.sourceLine
+  { position: relative; }
+pre.numberSource a.sourceLine:empty
+  { position: absolute; }
+pre.numberSource a.sourceLine::before
+  { content: attr(data-line-number);
+    position: absolute; left: -5em; text-align: right; vertical-align: baseline;
+    border: none; pointer-events: all;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {  }
+@media screen {
+a.sourceLine::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS_CHTML-full" type="text/javascript"></script>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<header>
+<h1 class="title">Judgements</h1>
+</header>
+<p>So far we’ve developed a grammar of expressions and a grammar of types and implemented a version of the Hindley-Milner type inference algorithm. Our goal is to use this as the object language for a natural deduction system so we can write machine-checked proofs about lambda calculus expressions. To that end, in this module we’ll develop yet another grammar – a grammar of <em>judgements</em>. These will be the atoms of logical proofs.</p>
+<p>As usual we start with some module imports.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ot">{-# LANGUAGE LambdaCase, FlexibleInstances, BangPatterns #-}</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="kw">module</span> <span class="dt">Jud</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb1-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="kw">import</span> <span class="dt">Control.Monad</span></a>
+<a class="sourceLine" id="cb1-5" data-line-number="5">  ( ap, foldM )</a>
+<a class="sourceLine" id="cb1-6" data-line-number="6"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Map</span> <span class="kw">as</span> <span class="dt">M</span></a>
+<a class="sourceLine" id="cb1-7" data-line-number="7">  ( elems, keysSet, filter, lookup )</a>
+<a class="sourceLine" id="cb1-8" data-line-number="8"><span class="kw">import</span> <span class="dt">Data.Proxy</span></a>
+<a class="sourceLine" id="cb1-9" data-line-number="9">  ( <span class="dt">Proxy</span>(<span class="fu">..</span>) )</a>
+<a class="sourceLine" id="cb1-10" data-line-number="10"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Set</span> <span class="kw">as</span> <span class="dt">S</span></a>
+<a class="sourceLine" id="cb1-11" data-line-number="11">  ( <span class="dt">Set</span>(), insert, fromList, member, disjoint</a>
+<a class="sourceLine" id="cb1-12" data-line-number="12">  , empty, singleton, unions, union, difference )</a>
+<a class="sourceLine" id="cb1-13" data-line-number="13"><span class="kw">import</span> <span class="dt">Test.QuickCheck</span></a>
+<a class="sourceLine" id="cb1-14" data-line-number="14">  ( <span class="dt">Arbitrary</span>(<span class="fu">..</span>), <span class="dt">Gen</span>, getSize, elements, oneof, listOf1 )</a>
+<a class="sourceLine" id="cb1-15" data-line-number="15"></a>
+<a class="sourceLine" id="cb1-16" data-line-number="16"><span class="kw">import</span> <span class="dt">Var</span></a>
+<a class="sourceLine" id="cb1-17" data-line-number="17"><span class="kw">import</span> <span class="dt">Sub</span></a>
+<a class="sourceLine" id="cb1-18" data-line-number="18"><span class="kw">import</span> <span class="dt">Expr</span></a>
+<a class="sourceLine" id="cb1-19" data-line-number="19"><span class="kw">import</span> <span class="dt">Type</span></a>
+<a class="sourceLine" id="cb1-20" data-line-number="20"><span class="kw">import</span> <span class="dt">Infer</span></a></code></pre></div>
+<h2 id="judgements">Judgements</h2>
+<p>A <em>judgement</em> is a statement which may be supported by evidence. What evidence means here is very narrow: an inference rule counts as evidence, as do assumptions made in the course of writing a proof. We’ll get to evidence later though; first we need a concrete grammar of judgements.</p>
+<p>Our judgements will be built from nine basic parts. (We can ignore the <code>Loc</code> parameter for now; these will be used later.)</p>
+<p>First we have the basic logical connectives; variables, negation, conjunction, disjunction, implication, and equivalence. These have the usual meaning.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="kw">data</span> <span class="dt">Jud</span></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2">  <span class="fu">=</span> <span class="dt">JVar</span> <span class="dt">Loc</span> (<span class="dt">Var</span> <span class="dt">Jud</span>)</a>
+<a class="sourceLine" id="cb2-3" data-line-number="3">  <span class="fu">|</span> <span class="dt">JNeg</span> <span class="dt">Loc</span> <span class="dt">Jud</span></a>
+<a class="sourceLine" id="cb2-4" data-line-number="4">  <span class="fu">|</span> <span class="dt">JConj</span> <span class="dt">Loc</span> <span class="dt">Jud</span> <span class="dt">Jud</span></a>
+<a class="sourceLine" id="cb2-5" data-line-number="5">  <span class="fu">|</span> <span class="dt">JDisj</span> <span class="dt">Loc</span> <span class="dt">Jud</span> <span class="dt">Jud</span></a>
+<a class="sourceLine" id="cb2-6" data-line-number="6">  <span class="fu">|</span> <span class="dt">JImpl</span> <span class="dt">Loc</span> <span class="dt">Jud</span> <span class="dt">Jud</span></a>
+<a class="sourceLine" id="cb2-7" data-line-number="7">  <span class="fu">|</span> <span class="dt">JEqui</span> <span class="dt">Loc</span> <span class="dt">Jud</span> <span class="dt">Jud</span></a></code></pre></div>
+<p>Next we have three connectives involving expressions.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1">  <span class="fu">|</span> <span class="dt">JEq</span> <span class="dt">Loc</span> <span class="dt">Expr</span> <span class="dt">Expr</span></a>
+<a class="sourceLine" id="cb3-2" data-line-number="2">  <span class="fu">|</span> <span class="dt">JIs</span> <span class="dt">Loc</span> <span class="dt">Expr</span> <span class="dt">String</span></a>
+<a class="sourceLine" id="cb3-3" data-line-number="3">  <span class="fu">|</span> <span class="dt">JAll</span> <span class="dt">Loc</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="dt">Jud</span></a>
+<a class="sourceLine" id="cb3-4" data-line-number="4">  <span class="kw">deriving</span> (<span class="dt">Show</span>)</a></code></pre></div>
+<p><em>Equals</em> represents the statement that two expressions have the same “value”, whatever that means. We can interpret this judgement as a rewrite rule – the left hand side of an equation can be rewritten to the right hand side, and vice versa.</p>
+<p>The <em>is</em> connective will be used to wrap complicated statements behind a name, like <em>injective</em>. It will have no introduction or elimination rules, and can only be introduced in a definition.</p>
+<p>The <em>universal</em> connective represents a judgement within which one expression variable is explicitly quantified with forall.</p>
+<p>We haven’t derived an <code>Eq</code> instance for <code>Jud</code>gements because we need it to account for renamings of the variable bound by foralls.</p>
+<p>Here’s an <code>Arbitrary</code> instance for judgements analogous to the ones for <code>Expr</code> and <code>MonoType</code>.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">Arbitrary</span> <span class="dt">Jud</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb4-2" data-line-number="2">  arbitrary <span class="fu">=</span> getSize <span class="fu">&gt;&gt;=</span> genDepth</a>
+<a class="sourceLine" id="cb4-3" data-line-number="3">    <span class="kw">where</span></a>
+<a class="sourceLine" id="cb4-4" data-line-number="4"><span class="ot">      genDepth ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Gen</span> <span class="dt">Jud</span></a>
+<a class="sourceLine" id="cb4-5" data-line-number="5">      genDepth k</a>
+<a class="sourceLine" id="cb4-6" data-line-number="6">        <span class="fu">|</span> k <span class="fu">&lt;=</span> <span class="dv">0</span> <span class="fu">=</span> oneof</a>
+<a class="sourceLine" id="cb4-7" data-line-number="7">            [ <span class="dt">JVar</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
+<a class="sourceLine" id="cb4-8" data-line-number="8">            , <span class="dt">JIs</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
+<a class="sourceLine" id="cb4-9" data-line-number="9">                <span class="fu">&lt;*&gt;</span> (listOf1 <span class="fu">$</span> elements _is_chars)</a>
+<a class="sourceLine" id="cb4-10" data-line-number="10">            ]</a>
+<a class="sourceLine" id="cb4-11" data-line-number="11">        <span class="fu">|</span> otherwise <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb4-12" data-line-number="12">            <span class="kw">let</span> recur <span class="fu">=</span> genDepth <span class="fu">=&lt;&lt;</span> elements [<span class="dv">0</span><span class="fu">..</span>(k<span class="fu">-</span><span class="dv">1</span>)]</a>
+<a class="sourceLine" id="cb4-13" data-line-number="13">            oneof</a>
+<a class="sourceLine" id="cb4-14" data-line-number="14">              [ <span class="dt">JNeg</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> recur</a>
+<a class="sourceLine" id="cb4-15" data-line-number="15">              , <span class="dt">JConj</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> recur <span class="fu">&lt;*&gt;</span> recur</a>
+<a class="sourceLine" id="cb4-16" data-line-number="16">              , <span class="dt">JDisj</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> recur <span class="fu">&lt;*&gt;</span> recur</a>
+<a class="sourceLine" id="cb4-17" data-line-number="17">              , <span class="dt">JImpl</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> recur <span class="fu">&lt;*&gt;</span> recur</a>
+<a class="sourceLine" id="cb4-18" data-line-number="18">              , <span class="dt">JEqui</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> recur <span class="fu">&lt;*&gt;</span> recur</a>
+<a class="sourceLine" id="cb4-19" data-line-number="19">              , <span class="dt">JEq</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
+<a class="sourceLine" id="cb4-20" data-line-number="20">              , <span class="dt">JAll</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> recur</a>
+<a class="sourceLine" id="cb4-21" data-line-number="21">              ]</a>
+<a class="sourceLine" id="cb4-22" data-line-number="22"></a>
+<a class="sourceLine" id="cb4-23" data-line-number="23">  shrink <span class="fu">=</span> \<span class="kw">case</span></a>
+<a class="sourceLine" id="cb4-24" data-line-number="24">    <span class="dt">JVar</span> _ _ <span class="ot">-&gt;</span> []</a>
+<a class="sourceLine" id="cb4-25" data-line-number="25">    <span class="dt">JNeg</span> loc q <span class="ot">-&gt;</span> q <span class="fu">:</span> map (<span class="dt">JNeg</span> loc) (shrink q)</a>
+<a class="sourceLine" id="cb4-26" data-line-number="26">    <span class="dt">JConj</span> loc q1 q2 <span class="ot">-&gt;</span> [ q1, q2 ] <span class="fu">++</span> shrink2 (<span class="dt">JConj</span> loc) q1 q2</a>
+<a class="sourceLine" id="cb4-27" data-line-number="27">    <span class="dt">JDisj</span> loc q1 q2 <span class="ot">-&gt;</span> [ q1, q2 ] <span class="fu">++</span> shrink2 (<span class="dt">JDisj</span> loc) q1 q2</a>
+<a class="sourceLine" id="cb4-28" data-line-number="28">    <span class="dt">JImpl</span> loc q1 q2 <span class="ot">-&gt;</span> [ q1, q2 ] <span class="fu">++</span> shrink2 (<span class="dt">JImpl</span> loc) q1 q2</a>
+<a class="sourceLine" id="cb4-29" data-line-number="29">    <span class="dt">JEqui</span> loc q1 q2 <span class="ot">-&gt;</span> [ q1, q2 ] <span class="fu">++</span> shrink2 (<span class="dt">JEqui</span> loc) q1 q2</a>
+<a class="sourceLine" id="cb4-30" data-line-number="30">    <span class="dt">JEq</span> loc e1 e2 <span class="ot">-&gt;</span> shrink2 (<span class="dt">JEq</span> loc) e1 e2</a>
+<a class="sourceLine" id="cb4-31" data-line-number="31">    <span class="dt">JIs</span> _ _ _ <span class="ot">-&gt;</span> []</a>
+<a class="sourceLine" id="cb4-32" data-line-number="32">    <span class="dt">JAll</span> loc x q <span class="ot">-&gt;</span> q <span class="fu">:</span> map (<span class="dt">JAll</span> loc x) (shrink q)</a>
+<a class="sourceLine" id="cb4-33" data-line-number="33">    <span class="kw">where</span></a>
+<a class="sourceLine" id="cb4-34" data-line-number="34">      shrink2 f a b <span class="fu">=</span></a>
+<a class="sourceLine" id="cb4-35" data-line-number="35">        [ f u v <span class="fu">|</span> u <span class="ot">&lt;-</span> shrink a, v <span class="ot">&lt;-</span> shrink b ] <span class="fu">++</span></a>
+<a class="sourceLine" id="cb4-36" data-line-number="36">        [ f u b <span class="fu">|</span> u <span class="ot">&lt;-</span> shrink a ] <span class="fu">++</span></a>
+<a class="sourceLine" id="cb4-37" data-line-number="37">        [ f a v <span class="fu">|</span> v <span class="ot">&lt;-</span> shrink b ]</a>
+<a class="sourceLine" id="cb4-38" data-line-number="38"></a>
+<a class="sourceLine" id="cb4-39" data-line-number="39">_is_chars <span class="fu">=</span> <span class="st">&quot;abcdefghijklmnopqrstuvwxyz0123456789-_&quot;</span></a>
+<a class="sourceLine" id="cb4-40" data-line-number="40"></a>
+<a class="sourceLine" id="cb4-41" data-line-number="41"><span class="kw">instance</span> <span class="dt">Arbitrary</span> (<span class="dt">Var</span> <span class="dt">Jud</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb4-42" data-line-number="42">  arbitrary <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb4-43" data-line-number="43">    <span class="kw">let</span> makeVar i <span class="fu">=</span> <span class="dt">Var</span> <span class="fu">$</span> <span class="ch">&#39;Q&#39;</span> <span class="fu">:</span> show i</a>
+<a class="sourceLine" id="cb4-44" data-line-number="44">    k <span class="ot">&lt;-</span> getSize</a>
+<a class="sourceLine" id="cb4-45" data-line-number="45">    makeVar <span class="fu">&lt;$&gt;</span> elements [<span class="dv">0</span><span class="fu">..</span>k]</a></code></pre></div>
+<p>Every judgement has a (possibly empty) set of free expression variables. Variables can only become bound via the <code>JAll</code> rule.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="ot">freeExprVarsJ ::</span> <span class="dt">Jud</span> <span class="ot">-&gt;</span> <span class="dt">S.Set</span> (<span class="dt">Var</span> <span class="dt">Expr</span>)</a>
+<a class="sourceLine" id="cb5-2" data-line-number="2">freeExprVarsJ <span class="fu">=</span> \<span class="kw">case</span></a>
+<a class="sourceLine" id="cb5-3" data-line-number="3">  <span class="dt">JVar</span> <span class="fu">!</span>loc _ <span class="ot">-&gt;</span> S.empty</a>
+<a class="sourceLine" id="cb5-4" data-line-number="4">  <span class="dt">JNeg</span> <span class="fu">!</span>loc p <span class="ot">-&gt;</span> freeExprVarsJ p</a>
+<a class="sourceLine" id="cb5-5" data-line-number="5">  <span class="dt">JConj</span> <span class="fu">!</span>loc p q <span class="ot">-&gt;</span> S.union (freeExprVarsJ p) (freeExprVarsJ q)</a>
+<a class="sourceLine" id="cb5-6" data-line-number="6">  <span class="dt">JDisj</span> <span class="fu">!</span>loc p q <span class="ot">-&gt;</span> S.union (freeExprVarsJ p) (freeExprVarsJ q)</a>
+<a class="sourceLine" id="cb5-7" data-line-number="7">  <span class="dt">JImpl</span> <span class="fu">!</span>loc p q <span class="ot">-&gt;</span> S.union (freeExprVarsJ p) (freeExprVarsJ q)</a>
+<a class="sourceLine" id="cb5-8" data-line-number="8">  <span class="dt">JEqui</span> <span class="fu">!</span>loc p q <span class="ot">-&gt;</span> S.union (freeExprVarsJ p) (freeExprVarsJ q)</a>
+<a class="sourceLine" id="cb5-9" data-line-number="9">  <span class="dt">JEq</span> <span class="fu">!</span>loc e f <span class="ot">-&gt;</span> S.union (freeExprVars e) (freeExprVars f)</a>
+<a class="sourceLine" id="cb5-10" data-line-number="10">  <span class="dt">JIs</span> <span class="fu">!</span>loc e _ <span class="ot">-&gt;</span> freeExprVars e</a>
+<a class="sourceLine" id="cb5-11" data-line-number="11"></a>
+<a class="sourceLine" id="cb5-12" data-line-number="12">  <span class="dt">JAll</span> <span class="fu">!</span>loc x q <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb5-13" data-line-number="13">    S.difference (freeExprVarsJ q) (S.singleton x)</a></code></pre></div>
+<p>We need to be able to rename free expressions variables in a capture-avoiding way. As with expressions, this will generally change the meaning of a judgement but is useful as an intermediate step in computing alpha equivalence.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1"><span class="ot">renameFreeJ ::</span> (<span class="dt">Var</span> <span class="dt">Expr</span>, <span class="dt">Var</span> <span class="dt">Expr</span>) <span class="ot">-&gt;</span> <span class="dt">Jud</span> <span class="ot">-&gt;</span> <span class="dt">Jud</span></a>
+<a class="sourceLine" id="cb6-2" data-line-number="2">renameFreeJ (u,v) <span class="fu">=</span> \<span class="kw">case</span></a>
+<a class="sourceLine" id="cb6-3" data-line-number="3">  <span class="dt">JVar</span> <span class="fu">!</span>loc x <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb6-4" data-line-number="4">    <span class="dt">JVar</span> loc x</a>
+<a class="sourceLine" id="cb6-5" data-line-number="5">  <span class="dt">JNeg</span> <span class="fu">!</span>loc p <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb6-6" data-line-number="6">    <span class="dt">JNeg</span> loc (renameFreeJ (u,v) p)</a>
+<a class="sourceLine" id="cb6-7" data-line-number="7">  <span class="dt">JConj</span> <span class="fu">!</span>loc p q <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb6-8" data-line-number="8">    <span class="dt">JConj</span> loc (renameFreeJ (u,v) p) (renameFreeJ (u,v) q)</a>
+<a class="sourceLine" id="cb6-9" data-line-number="9">  <span class="dt">JDisj</span> <span class="fu">!</span>loc p q <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb6-10" data-line-number="10">    <span class="dt">JDisj</span> loc (renameFreeJ (u,v) p) (renameFreeJ (u,v) q)</a>
+<a class="sourceLine" id="cb6-11" data-line-number="11">  <span class="dt">JImpl</span> <span class="fu">!</span>loc p q <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb6-12" data-line-number="12">    <span class="dt">JImpl</span> loc (renameFreeJ (u,v) p) (renameFreeJ (u,v) q)</a>
+<a class="sourceLine" id="cb6-13" data-line-number="13">  <span class="dt">JEqui</span> <span class="fu">!</span>loc p q <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb6-14" data-line-number="14">    <span class="dt">JEqui</span> loc (renameFreeJ (u,v) p) (renameFreeJ (u,v) q)</a>
+<a class="sourceLine" id="cb6-15" data-line-number="15">  <span class="dt">JEq</span> <span class="fu">!</span>loc e f <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb6-16" data-line-number="16">    <span class="dt">JEq</span> loc (renameFreeExpr (u,v) e) (renameFreeExpr (u,v) f)</a>
+<a class="sourceLine" id="cb6-17" data-line-number="17">  <span class="dt">JIs</span> <span class="fu">!</span>loc e m <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb6-18" data-line-number="18">    <span class="dt">JIs</span> loc (renameFreeExpr (u,v) e) m</a>
+<a class="sourceLine" id="cb6-19" data-line-number="19"></a>
+<a class="sourceLine" id="cb6-20" data-line-number="20">  <span class="dt">JAll</span> <span class="fu">!</span>loc x q <span class="ot">-&gt;</span> <span class="kw">if</span> (x <span class="fu">==</span> u) <span class="fu">||</span> (x <span class="fu">==</span> v)</a>
+<a class="sourceLine" id="cb6-21" data-line-number="21">    <span class="kw">then</span></a>
+<a class="sourceLine" id="cb6-22" data-line-number="22">      <span class="kw">let</span></a>
+<a class="sourceLine" id="cb6-23" data-line-number="23">        y <span class="fu">=</span> fresh</a>
+<a class="sourceLine" id="cb6-24" data-line-number="24">          [ S.fromList [u,v]</a>
+<a class="sourceLine" id="cb6-25" data-line-number="25">          , freeExprVarsJ q ]</a>
+<a class="sourceLine" id="cb6-26" data-line-number="26">      <span class="kw">in</span> <span class="dt">JAll</span> loc y (renameFreeJ (u,v) <span class="fu">$</span> renameFreeJ (x,y) q)</a>
+<a class="sourceLine" id="cb6-27" data-line-number="27">    <span class="kw">else</span> <span class="dt">JAll</span> loc x (renameFreeJ (u,v) q)</a></code></pre></div>
+<p>The only interesting bit happens with <code>JAll</code>. If the dummy variable <code>x</code> is equal to either <code>u</code> or <code>v</code>, we first swap it out with a fresh variable to avoid capturing any occurrences in <code>q</code>.</p>
+<p>Next we tackle renaming bound variables.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1"><span class="ot">renameBoundJ ::</span> <span class="dt">S.Set</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="ot">-&gt;</span> <span class="dt">Jud</span> <span class="ot">-&gt;</span> <span class="dt">Jud</span></a>
+<a class="sourceLine" id="cb7-2" data-line-number="2">renameBoundJ avoid <span class="fu">=</span> \<span class="kw">case</span></a>
+<a class="sourceLine" id="cb7-3" data-line-number="3">  <span class="dt">JVar</span> <span class="fu">!</span>loc x <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb7-4" data-line-number="4">    <span class="dt">JVar</span> loc x</a>
+<a class="sourceLine" id="cb7-5" data-line-number="5">  <span class="dt">JNeg</span> <span class="fu">!</span>loc p <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb7-6" data-line-number="6">    <span class="dt">JNeg</span> loc (renameBoundJ avoid p)</a>
+<a class="sourceLine" id="cb7-7" data-line-number="7">  <span class="dt">JConj</span> <span class="fu">!</span>loc p q <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb7-8" data-line-number="8">    <span class="dt">JConj</span> loc (renameBoundJ avoid p) (renameBoundJ avoid q)</a>
+<a class="sourceLine" id="cb7-9" data-line-number="9">  <span class="dt">JDisj</span> <span class="fu">!</span>loc p q <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb7-10" data-line-number="10">    <span class="dt">JDisj</span> loc (renameBoundJ avoid p) (renameBoundJ avoid q)</a>
+<a class="sourceLine" id="cb7-11" data-line-number="11">  <span class="dt">JImpl</span> <span class="fu">!</span>loc p q <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb7-12" data-line-number="12">    <span class="dt">JImpl</span> loc (renameBoundJ avoid p) (renameBoundJ avoid q)</a>
+<a class="sourceLine" id="cb7-13" data-line-number="13">  <span class="dt">JEqui</span> <span class="fu">!</span>loc p q <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb7-14" data-line-number="14">    <span class="dt">JEqui</span> loc (renameBoundJ avoid p) (renameBoundJ avoid q)</a>
+<a class="sourceLine" id="cb7-15" data-line-number="15">  <span class="dt">JEq</span> <span class="fu">!</span>loc e f <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb7-16" data-line-number="16">    <span class="dt">JEq</span> loc (renameBoundExpr avoid e) (renameBoundExpr avoid f)</a>
+<a class="sourceLine" id="cb7-17" data-line-number="17">  <span class="dt">JIs</span> <span class="fu">!</span>loc e m <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb7-18" data-line-number="18">    <span class="dt">JIs</span> loc (renameBoundExpr avoid e) m</a>
+<a class="sourceLine" id="cb7-19" data-line-number="19"></a>
+<a class="sourceLine" id="cb7-20" data-line-number="20">  <span class="dt">JAll</span> <span class="fu">!</span>loc x q <span class="ot">-&gt;</span> <span class="kw">if</span> S.member x avoid</a>
+<a class="sourceLine" id="cb7-21" data-line-number="21">    <span class="kw">then</span></a>
+<a class="sourceLine" id="cb7-22" data-line-number="22">      <span class="kw">let</span></a>
+<a class="sourceLine" id="cb7-23" data-line-number="23">        y <span class="fu">=</span> fresh [S.singleton x, freeExprVarsJ q, avoid]</a>
+<a class="sourceLine" id="cb7-24" data-line-number="24">      <span class="kw">in</span> <span class="dt">JAll</span> loc y</a>
+<a class="sourceLine" id="cb7-25" data-line-number="25">        (renameBoundJ avoid <span class="fu">$</span> renameFreeJ (x,y) q)</a>
+<a class="sourceLine" id="cb7-26" data-line-number="26">    <span class="kw">else</span> <span class="dt">JAll</span> loc x</a>
+<a class="sourceLine" id="cb7-27" data-line-number="27">      (renameBoundJ avoid q)</a></code></pre></div>
+<p>These definitions make <code>Jud</code> an instance of <code>HasExprVars</code>.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">HasExprVars</span> <span class="dt">Jud</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb8-2" data-line-number="2">  freeExprVars <span class="fu">=</span> freeExprVarsJ</a>
+<a class="sourceLine" id="cb8-3" data-line-number="3">  renameFreeExpr <span class="fu">=</span> renameFreeJ</a>
+<a class="sourceLine" id="cb8-4" data-line-number="4">  renameBoundExpr <span class="fu">=</span> renameBoundJ</a></code></pre></div>
+<p>We’re now prepared to define alpha equivalence on judgements. This is more or less the same as alpha equivalence for expressions.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">Eq</span> <span class="dt">Jud</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb9-2" data-line-number="2">  j1 <span class="fu">==</span> j2 <span class="fu">=</span> <span class="kw">case</span> (j1,j2) <span class="kw">of</span></a>
+<a class="sourceLine" id="cb9-3" data-line-number="3">    (<span class="dt">JVar</span> _ x1, <span class="dt">JVar</span> _ x2) <span class="ot">-&gt;</span> x1 <span class="fu">==</span> x2</a>
+<a class="sourceLine" id="cb9-4" data-line-number="4">    (<span class="dt">JNeg</span> _ p1, <span class="dt">JNeg</span> _ p2) <span class="ot">-&gt;</span> p1 <span class="fu">==</span> p2</a>
+<a class="sourceLine" id="cb9-5" data-line-number="5">    (<span class="dt">JConj</span> _ p1 q1, <span class="dt">JConj</span> _ p2 q2) <span class="ot">-&gt;</span> (p1 <span class="fu">==</span> p2) <span class="fu">&amp;&amp;</span> (q1 <span class="fu">==</span> q2)</a>
+<a class="sourceLine" id="cb9-6" data-line-number="6">    (<span class="dt">JDisj</span> _ p1 q1, <span class="dt">JDisj</span> _ p2 q2) <span class="ot">-&gt;</span> (p1 <span class="fu">==</span> p2) <span class="fu">&amp;&amp;</span> (q1 <span class="fu">==</span> q2)</a>
+<a class="sourceLine" id="cb9-7" data-line-number="7">    (<span class="dt">JImpl</span> _ p1 q1, <span class="dt">JImpl</span> _ p2 q2) <span class="ot">-&gt;</span> (p1 <span class="fu">==</span> p2) <span class="fu">&amp;&amp;</span> (q1 <span class="fu">==</span> q2)</a>
+<a class="sourceLine" id="cb9-8" data-line-number="8">    (<span class="dt">JEqui</span> _ p1 q1, <span class="dt">JEqui</span> _ p2 q2) <span class="ot">-&gt;</span> (p1 <span class="fu">==</span> p2) <span class="fu">&amp;&amp;</span> (q1 <span class="fu">==</span> q2)</a>
+<a class="sourceLine" id="cb9-9" data-line-number="9">    (<span class="dt">JEq</span> _ e1 f1, <span class="dt">JEq</span> _ e2 f2) <span class="ot">-&gt;</span> (e1 <span class="fu">==</span> e2) <span class="fu">&amp;&amp;</span> (f1 <span class="fu">==</span> f2)</a>
+<a class="sourceLine" id="cb9-10" data-line-number="10">    (<span class="dt">JIs</span> _ e1 m1, <span class="dt">JIs</span> _ e2 m2) <span class="ot">-&gt;</span> (e1 <span class="fu">==</span> e2) <span class="fu">&amp;&amp;</span> (m1 <span class="fu">==</span> m2)</a>
+<a class="sourceLine" id="cb9-11" data-line-number="11"></a>
+<a class="sourceLine" id="cb9-12" data-line-number="12">    (<span class="dt">JAll</span> _ x1 q1, <span class="dt">JAll</span> _ x2 q2) <span class="ot">-&gt;</span> <span class="kw">if</span> x1 <span class="fu">==</span> x2</a>
+<a class="sourceLine" id="cb9-13" data-line-number="13">      <span class="kw">then</span> q1 <span class="fu">==</span> q2</a>
+<a class="sourceLine" id="cb9-14" data-line-number="14">      <span class="kw">else</span></a>
+<a class="sourceLine" id="cb9-15" data-line-number="15">        <span class="kw">let</span></a>
+<a class="sourceLine" id="cb9-16" data-line-number="16">          y <span class="fu">=</span> fresh</a>
+<a class="sourceLine" id="cb9-17" data-line-number="17">            [ freeExprVars q1</a>
+<a class="sourceLine" id="cb9-18" data-line-number="18">            , freeExprVars q2 ]</a>
+<a class="sourceLine" id="cb9-19" data-line-number="19">        <span class="kw">in</span></a>
+<a class="sourceLine" id="cb9-20" data-line-number="20">          (renameFreeExpr (x1,y) q1) <span class="fu">==</span> (renameFreeExpr (x2,y) q2)</a>
+<a class="sourceLine" id="cb9-21" data-line-number="21"></a>
+<a class="sourceLine" id="cb9-22" data-line-number="22">    _ <span class="ot">-&gt;</span> <span class="dt">False</span></a></code></pre></div>
+<h2 id="substitution">Substitution</h2>
+<p>We’ll need to apply substitutions to judgements in two ways: for judgement variables and for expression variables. First we define substitution for expressions.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">SubExpr</span> <span class="dt">Jud</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb10-2" data-line-number="2">  s <span class="fu">$&gt;</span> p <span class="fu">=</span> <span class="kw">case</span> p <span class="kw">of</span></a>
+<a class="sourceLine" id="cb10-3" data-line-number="3">    <span class="dt">JVar</span> <span class="fu">!</span>loc x <span class="ot">-&gt;</span> <span class="dt">JVar</span> loc x</a>
+<a class="sourceLine" id="cb10-4" data-line-number="4">    <span class="dt">JNeg</span> <span class="fu">!</span>loc q <span class="ot">-&gt;</span> <span class="dt">JNeg</span> loc (s <span class="fu">$&gt;</span> q)</a>
+<a class="sourceLine" id="cb10-5" data-line-number="5">    <span class="dt">JConj</span> <span class="fu">!</span>loc q1 q2 <span class="ot">-&gt;</span> <span class="dt">JConj</span> loc (s <span class="fu">$&gt;</span> q1) (s <span class="fu">$&gt;</span> q2)</a>
+<a class="sourceLine" id="cb10-6" data-line-number="6">    <span class="dt">JDisj</span> <span class="fu">!</span>loc q1 q2 <span class="ot">-&gt;</span> <span class="dt">JDisj</span> loc (s <span class="fu">$&gt;</span> q1) (s <span class="fu">$&gt;</span> q2)</a>
+<a class="sourceLine" id="cb10-7" data-line-number="7">    <span class="dt">JImpl</span> <span class="fu">!</span>loc q1 q2 <span class="ot">-&gt;</span> <span class="dt">JImpl</span> loc (s <span class="fu">$&gt;</span> q1) (s <span class="fu">$&gt;</span> q2)</a>
+<a class="sourceLine" id="cb10-8" data-line-number="8">    <span class="dt">JEqui</span> <span class="fu">!</span>loc q1 q2 <span class="ot">-&gt;</span> <span class="dt">JEqui</span> loc (s <span class="fu">$&gt;</span> q1) (s <span class="fu">$&gt;</span> q2)</a>
+<a class="sourceLine" id="cb10-9" data-line-number="9">    <span class="dt">JEq</span> <span class="fu">!</span>loc e1 e2 <span class="ot">-&gt;</span> <span class="dt">JEq</span> loc (s <span class="fu">$&gt;</span> e1) (s <span class="fu">$&gt;</span> e2)</a>
+<a class="sourceLine" id="cb10-10" data-line-number="10">    <span class="dt">JIs</span> <span class="fu">!</span>loc e str <span class="ot">-&gt;</span> <span class="dt">JIs</span> loc (s <span class="fu">$&gt;</span> e) str</a>
+<a class="sourceLine" id="cb10-11" data-line-number="11"></a>
+<a class="sourceLine" id="cb10-12" data-line-number="12">    <span class="dt">JAll</span> <span class="fu">!</span>loc x q <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb10-13" data-line-number="13">      <span class="kw">let</span></a>
+<a class="sourceLine" id="cb10-14" data-line-number="14">        y <span class="fu">=</span> fresh</a>
+<a class="sourceLine" id="cb10-15" data-line-number="15">          [ S.singleton x</a>
+<a class="sourceLine" id="cb10-16" data-line-number="16">          , freeExprVars s</a>
+<a class="sourceLine" id="cb10-17" data-line-number="17">          , support s</a>
+<a class="sourceLine" id="cb10-18" data-line-number="18">          , freeExprVars q ]</a>
+<a class="sourceLine" id="cb10-19" data-line-number="19">      <span class="kw">in</span></a>
+<a class="sourceLine" id="cb10-20" data-line-number="20">        <span class="dt">JAll</span> loc y (s <span class="fu">$&gt;</span> (renameFreeExpr (x,y) q))</a></code></pre></div>
+<p>As usual the only interesting bits happen for the <code>JAll</code> rule, where we have to rename the bound variable to avoid capture.</p>
+<p>Judgement substitutions inherit <code>SubExpr</code> and <code>HasExprVars</code> instances pointwise.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb11-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">SubExpr</span> (<span class="dt">Sub</span> <span class="dt">Jud</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb11-2" data-line-number="2">  s <span class="fu">$&gt;</span> (<span class="dt">Sub</span> m) <span class="fu">=</span> <span class="dt">Sub</span> <span class="fu">$</span> fmap (s <span class="fu">$&gt;</span>) m</a>
+<a class="sourceLine" id="cb11-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb11-4" data-line-number="4"><span class="kw">instance</span> <span class="dt">HasExprVars</span> (<span class="dt">Sub</span> <span class="dt">Jud</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb11-5" data-line-number="5">  freeExprVars (<span class="dt">Sub</span> m) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb11-6" data-line-number="6">    S.unions <span class="fu">.</span> map freeExprVars <span class="fu">.</span> M.elems <span class="fu">$</span> m</a>
+<a class="sourceLine" id="cb11-7" data-line-number="7">  renameFreeExpr (u,v) (<span class="dt">Sub</span> m) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb11-8" data-line-number="8">    <span class="dt">Sub</span> <span class="fu">$</span> fmap (renameFreeExpr (u,v)) m</a>
+<a class="sourceLine" id="cb11-9" data-line-number="9">  renameBoundExpr avoid (<span class="dt">Sub</span> m) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb11-10" data-line-number="10">    <span class="dt">Sub</span> <span class="fu">$</span> fmap (renameBoundExpr avoid) m</a></code></pre></div>
+<p>Next we handle substitutions for judgement variables; as with expression and type substitutions, we’ll wrap this behind a type class. We also need an <code>Arbitrary</code> instance for judgement substitutions.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb12-1" data-line-number="1"><span class="kw">class</span> <span class="dt">JudSub</span> t <span class="kw">where</span></a>
+<a class="sourceLine" id="cb12-2" data-line-number="2"><span class="ot">  ($~) ::</span> <span class="dt">Sub</span> <span class="dt">Jud</span> <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> t</a>
+<a class="sourceLine" id="cb12-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb12-4" data-line-number="4"><span class="kw">instance</span> <span class="dt">Arbitrary</span> (<span class="dt">Sub</span> <span class="dt">Jud</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb12-5" data-line-number="5">  arbitrary <span class="fu">=</span> <span class="dt">Sub</span> <span class="fu">&lt;$&gt;</span> arbitrary</a>
+<a class="sourceLine" id="cb12-6" data-line-number="6">  shrink (<span class="dt">Sub</span> m) <span class="fu">=</span> map <span class="dt">Sub</span> <span class="fu">$</span> shrink m</a></code></pre></div>
+<p>We can apply judgement substitutions to judgements. This is made simpler by the fact that there are no binding constructs for judgement variables.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb13-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">JudSub</span> <span class="dt">Jud</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb13-2" data-line-number="2">  s <span class="fu">$~</span> p <span class="fu">=</span> <span class="kw">case</span> p <span class="kw">of</span></a>
+<a class="sourceLine" id="cb13-3" data-line-number="3">    <span class="dt">JVar</span> <span class="fu">!</span>loc x <span class="ot">-&gt;</span> <span class="kw">case</span> applySub x s <span class="kw">of</span></a>
+<a class="sourceLine" id="cb13-4" data-line-number="4">      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">JVar</span> loc x</a>
+<a class="sourceLine" id="cb13-5" data-line-number="5">      <span class="dt">Just</span> p&#39; <span class="ot">-&gt;</span> p&#39;</a>
+<a class="sourceLine" id="cb13-6" data-line-number="6">    <span class="dt">JNeg</span> <span class="fu">!</span>loc q <span class="ot">-&gt;</span> <span class="dt">JNeg</span> loc <span class="fu">$</span> s <span class="fu">$~</span> q</a>
+<a class="sourceLine" id="cb13-7" data-line-number="7">    <span class="dt">JConj</span> <span class="fu">!</span>loc q1 q2 <span class="ot">-&gt;</span> <span class="dt">JConj</span> loc (s <span class="fu">$~</span> q1) (s <span class="fu">$~</span> q2)</a>
+<a class="sourceLine" id="cb13-8" data-line-number="8">    <span class="dt">JDisj</span> <span class="fu">!</span>loc q1 q2 <span class="ot">-&gt;</span> <span class="dt">JDisj</span> loc (s <span class="fu">$~</span> q1) (s <span class="fu">$~</span> q2)</a>
+<a class="sourceLine" id="cb13-9" data-line-number="9">    <span class="dt">JImpl</span> <span class="fu">!</span>loc q1 q2 <span class="ot">-&gt;</span> <span class="dt">JImpl</span> loc (s <span class="fu">$~</span> q1) (s <span class="fu">$~</span> q2)</a>
+<a class="sourceLine" id="cb13-10" data-line-number="10">    <span class="dt">JEqui</span> <span class="fu">!</span>loc q1 q2 <span class="ot">-&gt;</span> <span class="dt">JEqui</span> loc (s <span class="fu">$~</span> q1) (s <span class="fu">$~</span> q2)</a>
+<a class="sourceLine" id="cb13-11" data-line-number="11">    <span class="dt">JEq</span> <span class="fu">!</span>loc e1 e2 <span class="ot">-&gt;</span> <span class="dt">JEq</span> loc e1 e2</a>
+<a class="sourceLine" id="cb13-12" data-line-number="12">    <span class="dt">JIs</span> <span class="fu">!</span>loc x str <span class="ot">-&gt;</span> <span class="dt">JIs</span> loc x str</a>
+<a class="sourceLine" id="cb13-13" data-line-number="13"></a>
+<a class="sourceLine" id="cb13-14" data-line-number="14">    <span class="dt">JAll</span> <span class="fu">!</span>loc x q <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb13-15" data-line-number="15">      <span class="kw">let</span></a>
+<a class="sourceLine" id="cb13-16" data-line-number="16">        y <span class="fu">=</span> fresh</a>
+<a class="sourceLine" id="cb13-17" data-line-number="17">          [ S.singleton x</a>
+<a class="sourceLine" id="cb13-18" data-line-number="18">          , freeExprVars s</a>
+<a class="sourceLine" id="cb13-19" data-line-number="19">          , freeExprVars q ]</a>
+<a class="sourceLine" id="cb13-20" data-line-number="20">      <span class="kw">in</span></a>
+<a class="sourceLine" id="cb13-21" data-line-number="21">        <span class="dt">JAll</span> loc y (s <span class="fu">$~</span> (renameFreeExpr (x,y) q))</a></code></pre></div>
+<p>Again in the <code>JAll</code> case we take care to avoid variable capture.</p>
+<p>We can also apply judgement substitutions to judgement substitutions pointwise:</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb14-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">JudSub</span> (<span class="dt">Sub</span> <span class="dt">Jud</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb14-2" data-line-number="2">  s1 <span class="fu">$~</span> (<span class="dt">Sub</span> m2) <span class="fu">=</span> <span class="dt">Sub</span> <span class="fu">$</span> fmap (s1 <span class="fu">$~</span>) m2</a></code></pre></div>
+<p>And this can be turned into a monoid structure on the set of judgement substitutions.</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb15-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">Semigroup</span> (<span class="dt">Sub</span> <span class="dt">Jud</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb15-2" data-line-number="2">  s1 <span class="fu">&lt;&gt;</span> s2 <span class="fu">=</span> (s1 <span class="fu">$~</span> s2) <span class="fu">.&amp;</span> s1</a>
+<a class="sourceLine" id="cb15-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb15-4" data-line-number="4"><span class="kw">instance</span> <span class="dt">Monoid</span> (<span class="dt">Sub</span> <span class="dt">Jud</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb15-5" data-line-number="5">  mempty <span class="fu">=</span> emptySub</a></code></pre></div>
+<p>Finally, ‘judgement substitution application’ should be a monoid action, which we can test.</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb16-1" data-line-number="1">test_subjud_identity</a>
+<a class="sourceLine" id="cb16-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">JudSub</span> t, <span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb16-3" data-line-number="3">test_subjud_identity _ j <span class="fu">=</span></a>
+<a class="sourceLine" id="cb16-4" data-line-number="4">  j <span class="fu">==</span> emptySub <span class="fu">$~</span> j</a>
+<a class="sourceLine" id="cb16-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb16-6" data-line-number="6">test_subjud_action</a>
+<a class="sourceLine" id="cb16-7" data-line-number="7"><span class="ot">  ::</span> (<span class="dt">JudSub</span> t, <span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">Sub</span> <span class="dt">Jud</span> <span class="ot">-&gt;</span> <span class="dt">Sub</span> <span class="dt">Jud</span> <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb16-8" data-line-number="8">test_subjud_action _ s1 s2 j <span class="fu">=</span></a>
+<a class="sourceLine" id="cb16-9" data-line-number="9">  (s1 <span class="fu">$~</span> (s2 <span class="fu">$~</span> j)) <span class="fu">==</span> ((s1 <span class="fu">&lt;&gt;</span> s2) <span class="fu">$~</span> j)</a></code></pre></div>
+<h2 id="matching">Matching</h2>
+<p>We will need to <em>match</em> one judgement against another, as we did with <code>Expr</code>s. Eventually we’ll express <em>inference rules</em> in terms of judgements, and matching is how we’ll detect when a given inference rule is applied correctly.</p>
+<p>A judgement matching consists of two substitutions: a judgement substitution and an expression substitution. If <span class="math inline">\(J_1\)</span> and <span class="math inline">\(J_2\)</span> are matched by <span class="math inline">\(S_J\)</span> and <span class="math inline">\(S_E\)</span>, then <span class="math display">\[J_2 = S_J \cdot (S_E \cdot J_1).\]</span> We can construct matchings by case analysis. As with expression matching, we’ll need to keep track of a bound variable context along the way.</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb17-1" data-line-number="1"><span class="ot">matchJud ::</span> <span class="dt">Jud</span> <span class="ot">-&gt;</span> <span class="dt">Jud</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">Sub</span> <span class="dt">Jud</span>, <span class="dt">Sub</span> <span class="dt">Expr</span>)</a>
+<a class="sourceLine" id="cb17-2" data-line-number="2">matchJud <span class="fu">=</span> matchJud&#39; S.empty</a>
+<a class="sourceLine" id="cb17-3" data-line-number="3">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb17-4" data-line-number="4">    match2 bound (p1,q1) (p2,q2) <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb17-5" data-line-number="5">      (js1,es1) <span class="ot">&lt;-</span> matchJud&#39; bound p1 p2</a>
+<a class="sourceLine" id="cb17-6" data-line-number="6">      (js2,es2) <span class="ot">&lt;-</span> matchJud&#39; bound q1 q2</a>
+<a class="sourceLine" id="cb17-7" data-line-number="7">      js <span class="ot">&lt;-</span> unionSub js1 js2</a>
+<a class="sourceLine" id="cb17-8" data-line-number="8">      es <span class="ot">&lt;-</span> unionSub es1 es2</a>
+<a class="sourceLine" id="cb17-9" data-line-number="9">      <span class="dt">Just</span> (js,es)</a></code></pre></div>
+<p>First a utility: to match pairs of judgements, we match corresponding judgements and combine.</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb18-1" data-line-number="1">    matchJud&#39; bound j1 j2 <span class="fu">=</span> <span class="kw">case</span> (j1,j2) <span class="kw">of</span></a>
+<a class="sourceLine" id="cb18-2" data-line-number="2">      (<span class="dt">JVar</span> _ x, p) <span class="ot">-&gt;</span> <span class="kw">if</span> S.disjoint bound (freeExprVars p)</a>
+<a class="sourceLine" id="cb18-3" data-line-number="3">        <span class="kw">then</span> <span class="dt">Just</span> (x <span class="fu">--&gt;</span> p, emptySub)</a>
+<a class="sourceLine" id="cb18-4" data-line-number="4">        <span class="kw">else</span> <span class="dt">Nothing</span></a></code></pre></div>
+<p>Judgement variables match any judgement, as long as no free variables become bound in context.</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb19-1" data-line-number="1">      (<span class="dt">JNeg</span> _ p1, <span class="dt">JNeg</span> _ p2) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb19-2" data-line-number="2">        matchJud&#39; bound p1 p2</a>
+<a class="sourceLine" id="cb19-3" data-line-number="3">      (<span class="dt">JConj</span> _ p1 q1, <span class="dt">JConj</span> _ p2 q2) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb19-4" data-line-number="4">        match2 bound (p1,q1) (p2,q2)</a>
+<a class="sourceLine" id="cb19-5" data-line-number="5">      (<span class="dt">JDisj</span> _ p1 q1, <span class="dt">JDisj</span> _ p2 q2) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb19-6" data-line-number="6">        match2 bound (p1,q1) (p2,q2)</a>
+<a class="sourceLine" id="cb19-7" data-line-number="7">      (<span class="dt">JImpl</span> _ p1 q1, <span class="dt">JImpl</span> _ p2 q2) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb19-8" data-line-number="8">        match2 bound (p1,q1) (p2,q2)</a>
+<a class="sourceLine" id="cb19-9" data-line-number="9">      (<span class="dt">JEqui</span> _ p1 q1, <span class="dt">JEqui</span> _ p2 q2) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb19-10" data-line-number="10">        match2 bound (p1,q1) (p2,q2)</a></code></pre></div>
+<p>The logical connectives don’t bind any new variables, so matching proceeds recursively using the <code>match2</code> utility.</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb20-1" data-line-number="1">      (<span class="dt">JEq</span> _ e1 f1, <span class="dt">JEq</span> _ e2 f2) <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb20-2" data-line-number="2">        es1 <span class="ot">&lt;-</span> matchExprInContext bound e1 e2</a>
+<a class="sourceLine" id="cb20-3" data-line-number="3">        es2 <span class="ot">&lt;-</span> matchExprInContext bound f1 f2</a>
+<a class="sourceLine" id="cb20-4" data-line-number="4">        es <span class="ot">&lt;-</span> unionSub es1 es2</a>
+<a class="sourceLine" id="cb20-5" data-line-number="5">        <span class="dt">Just</span> (emptySub, es)</a></code></pre></div>
+<p>For equations, we match either side with the bound variable context and union.</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb21-1" data-line-number="1">      (<span class="dt">JIs</span> _ e1 m1, <span class="dt">JIs</span> _ e2 m2) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb21-2" data-line-number="2">        <span class="kw">if</span> m1 <span class="fu">==</span> m2</a>
+<a class="sourceLine" id="cb21-3" data-line-number="3">          <span class="kw">then</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb21-4" data-line-number="4">            es <span class="ot">&lt;-</span> matchExprInContext bound e1 e2</a>
+<a class="sourceLine" id="cb21-5" data-line-number="5">            <span class="dt">Just</span> (emptySub, es)</a>
+<a class="sourceLine" id="cb21-6" data-line-number="6">          <span class="kw">else</span> <span class="dt">Nothing</span></a></code></pre></div>
+<p>Is statements are similar to equations; match the expressions with the bound context.</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb22-1" data-line-number="1">      (<span class="dt">JAll</span> _ x1 q1, <span class="dt">JAll</span> _ x2 q2) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb22-2" data-line-number="2">        <span class="kw">if</span> x1 <span class="fu">==</span> x2</a>
+<a class="sourceLine" id="cb22-3" data-line-number="3">          <span class="kw">then</span> matchJud&#39; (S.insert x1 bound) q1 q2</a>
+<a class="sourceLine" id="cb22-4" data-line-number="4">          <span class="kw">else</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb22-5" data-line-number="5">            <span class="kw">let</span></a>
+<a class="sourceLine" id="cb22-6" data-line-number="6">              y <span class="fu">=</span> fresh</a>
+<a class="sourceLine" id="cb22-7" data-line-number="7">                [ bound</a>
+<a class="sourceLine" id="cb22-8" data-line-number="8">                , S.fromList [x1,x2]</a>
+<a class="sourceLine" id="cb22-9" data-line-number="9">                , freeExprVars q1</a>
+<a class="sourceLine" id="cb22-10" data-line-number="10">                , freeExprVars q2 ]</a>
+<a class="sourceLine" id="cb22-11" data-line-number="11">            matchJud&#39;</a>
+<a class="sourceLine" id="cb22-12" data-line-number="12">             (S.insert y bound)</a>
+<a class="sourceLine" id="cb22-13" data-line-number="13">             (renameFreeExpr (x1,y) q1)</a>
+<a class="sourceLine" id="cb22-14" data-line-number="14">             (renameFreeExpr (x2,y) q2)</a></code></pre></div>
+<p><code>JAll</code>s are similar to lambda expressions.</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb23-1" data-line-number="1">      _ <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a></code></pre></div>
+<p>And no other pairs of judgements match.</p>
+<p>Judgement matching is a fundamental part of proof checking, so we’d do well to test it thoroughly.</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb24-1" data-line-number="1"><span class="ot">test_cases_jud_match ::</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb24-2" data-line-number="2">test_cases_jud_match <span class="fu">=</span> and</a>
+<a class="sourceLine" id="cb24-3" data-line-number="3">  [ (<span class="fu">==</span>)</a>
+<a class="sourceLine" id="cb24-4" data-line-number="4">      (matchJud</a>
+<a class="sourceLine" id="cb24-5" data-line-number="5">        (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;P&quot;</span>))</a>
+<a class="sourceLine" id="cb24-6" data-line-number="6">        (<span class="dt">JEq</span> <span class="dt">Q</span> (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>))))</a>
+<a class="sourceLine" id="cb24-7" data-line-number="7">      (<span class="dt">Just</span></a>
+<a class="sourceLine" id="cb24-8" data-line-number="8">        ( <span class="dt">Var</span> <span class="st">&quot;P&quot;</span> <span class="fu">--&gt;</span> (<span class="dt">JEq</span> <span class="dt">Q</span> (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)))</a>
+<a class="sourceLine" id="cb24-9" data-line-number="9">        , emptySub))</a></code></pre></div>
+<p>This case matches the judgement variable <span class="math inline">\(P\)</span> against the judgement <span class="math inline">\(x = y\)</span>.</p>
+<div class="sourceCode" id="cb25"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb25-1" data-line-number="1">  , (<span class="fu">==</span>)</a>
+<a class="sourceLine" id="cb25-2" data-line-number="2">      (matchJud</a>
+<a class="sourceLine" id="cb25-3" data-line-number="3">        (<span class="dt">JConj</span> <span class="dt">Q</span></a>
+<a class="sourceLine" id="cb25-4" data-line-number="4">          (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;P&quot;</span>))</a>
+<a class="sourceLine" id="cb25-5" data-line-number="5">          (<span class="dt">JEq</span> <span class="dt">Q</span></a>
+<a class="sourceLine" id="cb25-6" data-line-number="6">            (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x1&quot;</span>))</a>
+<a class="sourceLine" id="cb25-7" data-line-number="7">            (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x2&quot;</span>))))</a>
+<a class="sourceLine" id="cb25-8" data-line-number="8">        (<span class="dt">JConj</span> <span class="dt">Q</span></a>
+<a class="sourceLine" id="cb25-9" data-line-number="9">          (<span class="dt">JIs</span> <span class="dt">Q</span> (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x0&quot;</span>)) <span class="st">&quot;crunchy&quot;</span>)</a>
+<a class="sourceLine" id="cb25-10" data-line-number="10">          (<span class="dt">JEq</span> <span class="dt">Q</span></a>
+<a class="sourceLine" id="cb25-11" data-line-number="11">            (<span class="dt">ELam</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x0&quot;</span>) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x0&quot;</span>)))</a>
+<a class="sourceLine" id="cb25-12" data-line-number="12">            (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x2&quot;</span>)))))</a>
+<a class="sourceLine" id="cb25-13" data-line-number="13">      (<span class="dt">Just</span></a>
+<a class="sourceLine" id="cb25-14" data-line-number="14">        ( <span class="dt">Var</span> <span class="st">&quot;P&quot;</span> <span class="fu">--&gt;</span> (<span class="dt">JIs</span> <span class="dt">Q</span> (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x0&quot;</span>)) <span class="st">&quot;crunchy&quot;</span>)</a>
+<a class="sourceLine" id="cb25-15" data-line-number="15">        , (<span class="dt">Var</span> <span class="st">&quot;x1&quot;</span> <span class="fu">--&gt;</span> (<span class="dt">ELam</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x0&quot;</span>) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x0&quot;</span>))))</a>
+<a class="sourceLine" id="cb25-16" data-line-number="16">          <span class="fu">.&amp;</span> (<span class="dt">Var</span> <span class="st">&quot;x2&quot;</span> <span class="fu">--&gt;</span> <span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x2&quot;</span>))))</a></code></pre></div>
+<p>This case matches the judgement <span class="math display">\[P \wedge (x_1 = x_2)\]</span> against <span class="math display">\[(x_0\ \mathrm{is\ crunchy}) \wedge ((\lambda x_0 . x_0) = x_2)\]</span></p>
+<div class="sourceCode" id="cb26"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb26-1" data-line-number="1">  , (<span class="fu">==</span>)</a>
+<a class="sourceLine" id="cb26-2" data-line-number="2">      (matchJud</a>
+<a class="sourceLine" id="cb26-3" data-line-number="3">        (<span class="dt">JImpl</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;P&quot;</span>)) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;P&quot;</span>)))</a>
+<a class="sourceLine" id="cb26-4" data-line-number="4">        (<span class="dt">JImpl</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;Q&quot;</span>)) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;P&quot;</span>))))</a>
+<a class="sourceLine" id="cb26-5" data-line-number="5">      <span class="dt">Nothing</span></a></code></pre></div>
+<p>This case attempts to match <span class="math inline">\(P \Rightarrow P\)</span> against <span class="math inline">\(Q \Rightarrow P\)</span>, which should fail.</p>
+<div class="sourceCode" id="cb27"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb27-1" data-line-number="1">  , (<span class="fu">==</span>)</a>
+<a class="sourceLine" id="cb27-2" data-line-number="2">      (matchJud</a>
+<a class="sourceLine" id="cb27-3" data-line-number="3">        (<span class="dt">JAll</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;k&quot;</span>)</a>
+<a class="sourceLine" id="cb27-4" data-line-number="4">          (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>)))</a>
+<a class="sourceLine" id="cb27-5" data-line-number="5">        (<span class="dt">JAll</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;z&quot;</span>)</a>
+<a class="sourceLine" id="cb27-6" data-line-number="6">          (<span class="dt">JEq</span> <span class="dt">Q</span> (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;z&quot;</span>)) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)))))</a>
+<a class="sourceLine" id="cb27-7" data-line-number="7">      <span class="dt">Nothing</span></a>
+<a class="sourceLine" id="cb27-8" data-line-number="8">  ]</a></code></pre></div>
+<p>This case attempts to match a judgement variable inside a universally quantified statement against another universally quantified statement where the bound variable occurs. This should fail, because it is not possible to substitute a judgement for <span class="math inline">\(P\)</span> that correctly captures the bound variable.</p>
+<p>Property tests are also useful here; the trick is thinking of useful properties. We can of course test the equational property of matching; if <span class="math inline">\(S_J\)</span> and <span class="math inline">\(S_E\)</span> are a matching for <span class="math inline">\(J_1\)</span> and <span class="math inline">\(J_2\)</span>, then we should have <span class="math display">\[J_2 = S_J \cdot (S_E \cdot J_1).\]</span></p>
+<div class="sourceCode" id="cb28"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb28-1" data-line-number="1">test_jud_match</a>
+<a class="sourceLine" id="cb28-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">Jud</span> <span class="ot">-&gt;</span> <span class="dt">Jud</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb28-3" data-line-number="3">test_jud_match j1 j2 <span class="fu">=</span></a>
+<a class="sourceLine" id="cb28-4" data-line-number="4">  <span class="kw">case</span> matchJud j1 j2 <span class="kw">of</span></a>
+<a class="sourceLine" id="cb28-5" data-line-number="5">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">True</span></a>
+<a class="sourceLine" id="cb28-6" data-line-number="6">    <span class="dt">Just</span> (js,es) <span class="ot">-&gt;</span> j2 <span class="fu">==</span> js <span class="fu">$~</span> (es <span class="fu">$&gt;</span> j1)</a></code></pre></div>
+<p>This test should pass if our implementation of <code>matchJud</code> is correct. The bad news is that the vast majority of generated test cases will hit the <code>Nothing</code> branch and pass trivially. To get some better coverage we’ll need to cook up some pairs of judgements that are set up to match.</p>
+<p>The simplest example I can think of is that every judgement should match itself via a trivial substitution on its set of free variables.</p>
+<div class="sourceCode" id="cb29"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb29-1" data-line-number="1">test_jud_match_self</a>
+<a class="sourceLine" id="cb29-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">Jud</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb29-3" data-line-number="3">test_jud_match_self j <span class="fu">=</span></a>
+<a class="sourceLine" id="cb29-4" data-line-number="4">  <span class="kw">case</span> matchJud j j <span class="kw">of</span></a>
+<a class="sourceLine" id="cb29-5" data-line-number="5">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">False</span></a>
+<a class="sourceLine" id="cb29-6" data-line-number="6">    <span class="dt">Just</span> (_, es<span class="fu">@</span>(<span class="dt">Sub</span> m)) <span class="ot">-&gt;</span> and</a>
+<a class="sourceLine" id="cb29-7" data-line-number="7">      [ (M.keysSet m) <span class="fu">==</span> (freeExprVars j)</a>
+<a class="sourceLine" id="cb29-8" data-line-number="8">      , trivialExprSub es</a>
+<a class="sourceLine" id="cb29-9" data-line-number="9">      ]</a></code></pre></div>
+<p>Barely less trivially, every judgement should still match itself after we rename the bound variables.</p>
+<div class="sourceCode" id="cb30"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb30-1" data-line-number="1">test_jud_match_rename_bound</a>
+<a class="sourceLine" id="cb30-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">S.Set</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="ot">-&gt;</span> <span class="dt">Jud</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb30-3" data-line-number="3">test_jud_match_rename_bound avoid j <span class="fu">=</span></a>
+<a class="sourceLine" id="cb30-4" data-line-number="4">  <span class="kw">case</span> matchJud j (renameBoundExpr avoid j) <span class="kw">of</span></a>
+<a class="sourceLine" id="cb30-5" data-line-number="5">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">False</span></a>
+<a class="sourceLine" id="cb30-6" data-line-number="6">    <span class="dt">Just</span> (_, es<span class="fu">@</span>(<span class="dt">Sub</span> m)) <span class="ot">-&gt;</span> and</a>
+<a class="sourceLine" id="cb30-7" data-line-number="7">      [ (M.keysSet m) <span class="fu">==</span> (freeExprVars j)</a>
+<a class="sourceLine" id="cb30-8" data-line-number="8">      , trivialExprSub es</a>
+<a class="sourceLine" id="cb30-9" data-line-number="9">      ]</a></code></pre></div>
+<p>Another way to cook up judgements that match is to make one an explicit substitution of the other; <span class="math inline">\(J\)</span> should match <span class="math inline">\(S_J \cdot (S_E \cdot J)\)</span> for any <span class="math inline">\(J\)</span>, <span class="math inline">\(S_E\)</span> and <span class="math inline">\(S_J\)</span>.</p>
+<div class="sourceCode" id="cb31"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb31-1" data-line-number="1">test_jud_match_sub</a>
+<a class="sourceLine" id="cb31-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">Sub</span> <span class="dt">Jud</span> <span class="ot">-&gt;</span> <span class="dt">Sub</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">Jud</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb31-3" data-line-number="3">test_jud_match_sub js1 es1 j <span class="fu">=</span></a>
+<a class="sourceLine" id="cb31-4" data-line-number="4">  <span class="kw">case</span> matchJud j (js1 <span class="fu">$~</span> (es1 <span class="fu">$&gt;</span> j)) <span class="kw">of</span></a>
+<a class="sourceLine" id="cb31-5" data-line-number="5">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">False</span></a>
+<a class="sourceLine" id="cb31-6" data-line-number="6">    <span class="dt">Just</span> (js2,es2) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb31-7" data-line-number="7">      (js2 <span class="fu">$~</span> (es2 <span class="fu">$&gt;</span> j)) <span class="fu">==</span> (js1 <span class="fu">$~</span> (es1 <span class="fu">$&gt;</span> j))</a></code></pre></div>
+<h2 id="type-checking">Type Checking</h2>
+<p>Finally, we can also check that the expressions in a judgement can be consistently typed.</p>
+<div class="sourceCode" id="cb32"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb32-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">TypeCheck</span> <span class="dt">Jud</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb32-2" data-line-number="2">  typeCheck jud env <span class="fu">=</span> <span class="kw">case</span> jud <span class="kw">of</span> </a>
+<a class="sourceLine" id="cb32-3" data-line-number="3">    <span class="dt">JVar</span> _ _ <span class="ot">-&gt;</span> return env</a>
+<a class="sourceLine" id="cb32-4" data-line-number="4">    <span class="dt">JNeg</span> _ q <span class="ot">-&gt;</span> typeCheck q env</a>
+<a class="sourceLine" id="cb32-5" data-line-number="5">    <span class="dt">JConj</span> _ p q <span class="ot">-&gt;</span> typeCheck p env <span class="fu">&gt;&gt;=</span> typeCheck q</a>
+<a class="sourceLine" id="cb32-6" data-line-number="6">    <span class="dt">JDisj</span> _ p q <span class="ot">-&gt;</span> typeCheck p env <span class="fu">&gt;&gt;=</span> typeCheck q</a>
+<a class="sourceLine" id="cb32-7" data-line-number="7">    <span class="dt">JImpl</span> _ p q <span class="ot">-&gt;</span> typeCheck p env <span class="fu">&gt;&gt;=</span> typeCheck q</a>
+<a class="sourceLine" id="cb32-8" data-line-number="8">    <span class="dt">JEqui</span> _ p q <span class="ot">-&gt;</span> typeCheck p env <span class="fu">&gt;&gt;=</span> typeCheck q</a>
+<a class="sourceLine" id="cb32-9" data-line-number="9">    <span class="dt">JEq</span> _ e f <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb32-10" data-line-number="10">      env2 <span class="ot">&lt;-</span> introTypeVars (S.union (freeExprVars e) (freeExprVars f)) env</a>
+<a class="sourceLine" id="cb32-11" data-line-number="11">      (se,te) <span class="ot">&lt;-</span> infer env2 e</a>
+<a class="sourceLine" id="cb32-12" data-line-number="12">      <span class="kw">let</span> env3 <span class="fu">=</span> se <span class="fu">$.</span> env2</a>
+<a class="sourceLine" id="cb32-13" data-line-number="13">      (sf,tf) <span class="ot">&lt;-</span> infer env3 f</a>
+<a class="sourceLine" id="cb32-14" data-line-number="14">      <span class="kw">let</span> env4 <span class="fu">=</span> sf <span class="fu">$.</span> env3</a>
+<a class="sourceLine" id="cb32-15" data-line-number="15">      <span class="kw">case</span> unifyTypes te tf <span class="kw">of</span></a>
+<a class="sourceLine" id="cb32-16" data-line-number="16">        <span class="dt">Left</span> err <span class="ot">-&gt;</span> throwU err</a>
+<a class="sourceLine" id="cb32-17" data-line-number="17">        <span class="dt">Right</span> w <span class="ot">-&gt;</span> return (w <span class="fu">$.</span> env4)</a>
+<a class="sourceLine" id="cb32-18" data-line-number="18">    <span class="dt">JIs</span> _ e _ <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb32-19" data-line-number="19">      env2 <span class="ot">&lt;-</span> introTypeVars (freeExprVars e) env</a>
+<a class="sourceLine" id="cb32-20" data-line-number="20">      (se,_) <span class="ot">&lt;-</span> infer env2 e</a>
+<a class="sourceLine" id="cb32-21" data-line-number="21">      return (se <span class="fu">$.</span> env2)</a>
+<a class="sourceLine" id="cb32-22" data-line-number="22">    <span class="dt">JAll</span> _ x q <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb32-23" data-line-number="23">      <span class="kw">let</span> <span class="dt">TypeEnv</span> m <span class="fu">=</span> env</a>
+<a class="sourceLine" id="cb32-24" data-line-number="24">      <span class="kw">case</span> M.lookup (<span class="dt">Right</span> x) m <span class="kw">of</span></a>
+<a class="sourceLine" id="cb32-25" data-line-number="25">        <span class="dt">Nothing</span> <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb32-26" data-line-number="26">          introTypeVar x env</a>
+<a class="sourceLine" id="cb32-27" data-line-number="27">            <span class="fu">&gt;&gt;=</span> typeCheck q</a>
+<a class="sourceLine" id="cb32-28" data-line-number="28">            <span class="fu">&gt;&gt;=</span> elimTypeVar x</a>
+<a class="sourceLine" id="cb32-29" data-line-number="29">        <span class="dt">Just</span> _ <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb32-30" data-line-number="30">          <span class="kw">let</span></a>
+<a class="sourceLine" id="cb32-31" data-line-number="31">            y <span class="fu">=</span> fresh</a>
+<a class="sourceLine" id="cb32-32" data-line-number="32">              [ S.singleton x</a>
+<a class="sourceLine" id="cb32-33" data-line-number="33">              , typedVarsIn env</a>
+<a class="sourceLine" id="cb32-34" data-line-number="34">              , freeExprVars q ]</a>
+<a class="sourceLine" id="cb32-35" data-line-number="35">          introTypeVar y env</a>
+<a class="sourceLine" id="cb32-36" data-line-number="36">            <span class="fu">&gt;&gt;=</span> typeCheck (renameFreeExpr (x,y) q)</a>
+<a class="sourceLine" id="cb32-37" data-line-number="37">            <span class="fu">&gt;&gt;=</span> elimTypeVar y</a></code></pre></div>
+</body>
+</html>

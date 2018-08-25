@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Parser</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+  <style type="text/css">
+a.sourceLine { display: inline-block; line-height: 1.25; }
+a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
+a.sourceLine:empty { height: 1.2em; position: absolute; }
+.sourceCode { overflow: visible; }
+code.sourceCode { white-space: pre; position: relative; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+code.sourceCode { white-space: pre-wrap; }
+a.sourceLine { text-indent: -1em; padding-left: 1em; }
+}
+pre.numberSource a.sourceLine
+  { position: relative; }
+pre.numberSource a.sourceLine:empty
+  { position: absolute; }
+pre.numberSource a.sourceLine::before
+  { content: attr(data-line-number);
+    position: absolute; left: -5em; text-align: right; vertical-align: baseline;
+    border: none; pointer-events: all;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {  }
+@media screen {
+a.sourceLine::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS_CHTML-full" type="text/javascript"></script>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<header>
+<h1 class="title">Parser</h1>
+</header>
+<p>We’re finally ready to define a more compact syntax for proofs. Woo! We’ll use the <a href="http://hackage.haskell.org/package/parsec">parsec</a> library for this.</p>
+<p>As usual we start with some imports.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ot">{-# LANGUAGE FlexibleInstances, FlexibleContexts, LambdaCase #-}</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="kw">module</span> <span class="dt">Parser</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb1-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="kw">import</span> <span class="dt">Data.List</span></a>
+<a class="sourceLine" id="cb1-5" data-line-number="5">  ( unwords, intercalate )</a>
+<a class="sourceLine" id="cb1-6" data-line-number="6"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Map</span> <span class="kw">as</span> <span class="dt">M</span></a>
+<a class="sourceLine" id="cb1-7" data-line-number="7"><span class="kw">import</span> <span class="dt">Data.Proxy</span></a>
+<a class="sourceLine" id="cb1-8" data-line-number="8">  ( <span class="dt">Proxy</span>(<span class="fu">..</span>) )</a>
+<a class="sourceLine" id="cb1-9" data-line-number="9"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Set</span> <span class="kw">as</span> <span class="dt">S</span></a>
+<a class="sourceLine" id="cb1-10" data-line-number="10"><span class="kw">import</span> <span class="dt">Text.ParserCombinators.Parsec</span></a>
+<a class="sourceLine" id="cb1-11" data-line-number="11"><span class="kw">import</span> <span class="dt">Text.ParserCombinators.Parsec.Expr</span></a>
+<a class="sourceLine" id="cb1-12" data-line-number="12"></a>
+<a class="sourceLine" id="cb1-13" data-line-number="13"><span class="kw">import</span> <span class="dt">Var</span></a>
+<a class="sourceLine" id="cb1-14" data-line-number="14"><span class="kw">import</span> <span class="dt">Sub</span></a>
+<a class="sourceLine" id="cb1-15" data-line-number="15"><span class="kw">import</span> <span class="dt">Expr</span></a>
+<a class="sourceLine" id="cb1-16" data-line-number="16"><span class="kw">import</span> <span class="dt">Type</span></a>
+<a class="sourceLine" id="cb1-17" data-line-number="17"><span class="kw">import</span> <span class="dt">Jud</span></a>
+<a class="sourceLine" id="cb1-18" data-line-number="18"><span class="kw">import</span> <span class="dt">Proof</span></a>
+<a class="sourceLine" id="cb1-19" data-line-number="19"><span class="kw">import</span> <span class="dt">Module</span></a>
+<a class="sourceLine" id="cb1-20" data-line-number="20"><span class="kw">import</span> <span class="dt">Fancy</span></a></code></pre></div>
+<h2 id="basics">Basics</h2>
+<p>We’re going to provide two different syntaxes for proofs: the basic tree-formatted style, and the serialized fancy style. The difference between the two is only important when parsing proofs (not expressions). We can wrap both of these behind a class to make testing simpler.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="kw">class</span> <span class="dt">PrettyBasic</span> t <span class="kw">where</span></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2"><span class="ot">  prettyBasic ::</span> t <span class="ot">-&gt;</span> <span class="dt">String</span></a>
+<a class="sourceLine" id="cb2-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb2-4" data-line-number="4"><span class="ot">  prettyBasicWrap ::</span> t <span class="ot">-&gt;</span> <span class="dt">String</span></a>
+<a class="sourceLine" id="cb2-5" data-line-number="5">  prettyBasicWrap t <span class="fu">=</span></a>
+<a class="sourceLine" id="cb2-6" data-line-number="6">    <span class="kw">let</span> m <span class="fu">=</span> prettyBasic t <span class="kw">in</span></a>
+<a class="sourceLine" id="cb2-7" data-line-number="7">    <span class="kw">if</span> (elem <span class="ch">&#39; &#39;</span> m) <span class="fu">||</span> (elem <span class="ch">&#39;.&#39;</span> m) <span class="fu">||</span> (elem <span class="ch">&#39;~&#39;</span> m)</a>
+<a class="sourceLine" id="cb2-8" data-line-number="8">      <span class="kw">then</span> <span class="st">&quot;(&quot;</span> <span class="fu">++</span> m <span class="fu">++</span> <span class="st">&quot;)&quot;</span></a>
+<a class="sourceLine" id="cb2-9" data-line-number="9">      <span class="kw">else</span> m</a>
+<a class="sourceLine" id="cb2-10" data-line-number="10"></a>
+<a class="sourceLine" id="cb2-11" data-line-number="11"><span class="ot">  parseBasic ::</span> <span class="dt">Parser</span> t</a></code></pre></div>
+<p>The <code>prettyBasicWrap</code> function inserts parentheses where the syntax might otherwise be ambiguous.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="kw">class</span> <span class="dt">PrettyFancy</span> t <span class="kw">where</span></a>
+<a class="sourceLine" id="cb3-2" data-line-number="2"><span class="ot">  prettyFancy ::</span> t <span class="ot">-&gt;</span> <span class="dt">String</span></a>
+<a class="sourceLine" id="cb3-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb3-4" data-line-number="4"><span class="ot">  parseFancy ::</span> <span class="dt">Parser</span> t</a></code></pre></div>
+<p>We also need some parsing helpers. First a utility to get the <code>Loc</code>ation of the current character in the text.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="ot">getLoc ::</span> <span class="dt">Parser</span> <span class="dt">Loc</span></a>
+<a class="sourceLine" id="cb4-2" data-line-number="2">getLoc <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb4-3" data-line-number="3">  pos <span class="ot">&lt;-</span> getPosition</a>
+<a class="sourceLine" id="cb4-4" data-line-number="4">  return <span class="fu">$</span> <span class="dt">Loc</span> (sourceName pos) (sourceLine pos) (sourceColumn pos)</a></code></pre></div>
+<p>We’ll also be tossing out lots of whitespace. But the <code>spaces</code> parser built into parsec eats newlines, which we want to avoid. <code>spaceChars</code> parses only spaces.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="ot">spaceChars ::</span> <span class="dt">Parser</span> ()</a>
+<a class="sourceLine" id="cb5-2" data-line-number="2">spaceChars <span class="fu">=</span> many (char <span class="ch">&#39; &#39;</span>) <span class="fu">&gt;&gt;</span> return ()</a></code></pre></div>
+<p>The next two are for wrapping a parser in parentheses or curly braces.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1"><span class="ot">parens ::</span> <span class="dt">Parser</span> a <span class="ot">-&gt;</span> <span class="dt">Parser</span> a</a>
+<a class="sourceLine" id="cb6-2" data-line-number="2">parens p <span class="fu">=</span> between (char <span class="ch">&#39;(&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars) (char <span class="ch">&#39;)&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars) p</a>
+<a class="sourceLine" id="cb6-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb6-4" data-line-number="4"><span class="ot">braces ::</span> <span class="dt">Parser</span> a <span class="ot">-&gt;</span> <span class="dt">Parser</span> a</a>
+<a class="sourceLine" id="cb6-5" data-line-number="5">braces p <span class="fu">=</span> between (char <span class="ch">&#39;{&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars) (char <span class="ch">&#39;}&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars) p</a></code></pre></div>
+<p>We also want to test our parsers extensively. We can do this by hand with <code>testBasicParser</code> and <code>testFancyParser</code>.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1">testBasicParser</a>
+<a class="sourceLine" id="cb7-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">PrettyBasic</span> t, <span class="dt">Eq</span> t)</a>
+<a class="sourceLine" id="cb7-3" data-line-number="3">  <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Either</span> <span class="dt">String</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb7-4" data-line-number="4">testBasicParser _ str expected <span class="fu">=</span></a>
+<a class="sourceLine" id="cb7-5" data-line-number="5">  <span class="kw">case</span> runParser parseBasic () <span class="st">&quot;&quot;</span> str <span class="kw">of</span></a>
+<a class="sourceLine" id="cb7-6" data-line-number="6">    <span class="dt">Left</span> err <span class="ot">-&gt;</span> expected <span class="fu">==</span> <span class="dt">Left</span> (show err)</a>
+<a class="sourceLine" id="cb7-7" data-line-number="7">    <span class="dt">Right</span> x <span class="ot">-&gt;</span> expected <span class="fu">==</span> <span class="dt">Right</span> x</a>
+<a class="sourceLine" id="cb7-8" data-line-number="8"></a>
+<a class="sourceLine" id="cb7-9" data-line-number="9">testFancyParser</a>
+<a class="sourceLine" id="cb7-10" data-line-number="10"><span class="ot">  ::</span> (<span class="dt">PrettyFancy</span> t, <span class="dt">Eq</span> t)</a>
+<a class="sourceLine" id="cb7-11" data-line-number="11">  <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Either</span> <span class="dt">String</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb7-12" data-line-number="12">testFancyParser _ str expected <span class="fu">=</span></a>
+<a class="sourceLine" id="cb7-13" data-line-number="13">  <span class="kw">case</span> runParser parseFancy () <span class="st">&quot;&quot;</span> str <span class="kw">of</span></a>
+<a class="sourceLine" id="cb7-14" data-line-number="14">    <span class="dt">Left</span> err <span class="ot">-&gt;</span> expected <span class="fu">==</span> <span class="dt">Left</span> (show err)</a>
+<a class="sourceLine" id="cb7-15" data-line-number="15">    <span class="dt">Right</span> x <span class="ot">-&gt;</span> expected <span class="fu">==</span> <span class="dt">Right</span> x</a></code></pre></div>
+<p>As a property test, we can verify that the pretty/parse round trip is the identity.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" data-line-number="1">test_prettybasic</a>
+<a class="sourceLine" id="cb8-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">PrettyBasic</span> t, <span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb8-3" data-line-number="3">test_prettybasic _ t <span class="fu">=</span></a>
+<a class="sourceLine" id="cb8-4" data-line-number="4">  <span class="kw">case</span> runParser parseBasic () <span class="st">&quot;&quot;</span> (prettyBasic t) <span class="kw">of</span></a>
+<a class="sourceLine" id="cb8-5" data-line-number="5">    <span class="dt">Left</span> err <span class="ot">-&gt;</span> error <span class="fu">$</span> show err</a>
+<a class="sourceLine" id="cb8-6" data-line-number="6">    <span class="dt">Right</span> u <span class="ot">-&gt;</span> t <span class="fu">==</span> u</a>
+<a class="sourceLine" id="cb8-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb8-8" data-line-number="8">test_prettyfancy</a>
+<a class="sourceLine" id="cb8-9" data-line-number="9"><span class="ot">  ::</span> (<span class="dt">PrettyFancy</span> t, <span class="dt">Eq</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb8-10" data-line-number="10">test_prettyfancy _ t <span class="fu">=</span></a>
+<a class="sourceLine" id="cb8-11" data-line-number="11">  <span class="kw">case</span> runParser parseFancy () <span class="st">&quot;&quot;</span> (prettyFancy t) <span class="kw">of</span></a>
+<a class="sourceLine" id="cb8-12" data-line-number="12">    <span class="dt">Left</span> err <span class="ot">-&gt;</span> error <span class="fu">$</span> show err</a>
+<a class="sourceLine" id="cb8-13" data-line-number="13">    <span class="dt">Right</span> u <span class="ot">-&gt;</span> t <span class="fu">==</span> u</a></code></pre></div>
+<h2 id="expressions">Expressions</h2>
+<p>Expression variables start with a lowercase latin character, followed by 0 or mor latin characters, followed by 0 or more digits.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">PrettyBasic</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb9-2" data-line-number="2">  prettyBasic (<span class="dt">Var</span> s) <span class="fu">=</span> s</a>
+<a class="sourceLine" id="cb9-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb9-4" data-line-number="4">  parseBasic <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb9-5" data-line-number="5">    a <span class="ot">&lt;-</span> oneOf _latin_lc</a>
+<a class="sourceLine" id="cb9-6" data-line-number="6">    as <span class="ot">&lt;-</span> many <span class="fu">$</span> oneOf _latin</a>
+<a class="sourceLine" id="cb9-7" data-line-number="7">    bs <span class="ot">&lt;-</span> many <span class="fu">$</span> oneOf _digit</a>
+<a class="sourceLine" id="cb9-8" data-line-number="8">    spaceChars</a>
+<a class="sourceLine" id="cb9-9" data-line-number="9">    return (<span class="dt">Var</span> <span class="fu">$</span> a<span class="fu">:</span>as <span class="fu">++</span> bs)</a>
+<a class="sourceLine" id="cb9-10" data-line-number="10"></a>
+<a class="sourceLine" id="cb9-11" data-line-number="11">_latin_lc <span class="fu">=</span> <span class="st">&quot;abcdefghijklmnopqrstuvwxyz&quot;</span></a>
+<a class="sourceLine" id="cb9-12" data-line-number="12"></a>
+<a class="sourceLine" id="cb9-13" data-line-number="13">_latin <span class="fu">=</span> concat</a>
+<a class="sourceLine" id="cb9-14" data-line-number="14">  [ <span class="st">&quot;abcdefghijklmnopqrstuvwxyz&quot;</span></a>
+<a class="sourceLine" id="cb9-15" data-line-number="15">  , <span class="st">&quot;ABCDEFGHIJKLMNOPQRSTUVWXYZ&quot;</span></a>
+<a class="sourceLine" id="cb9-16" data-line-number="16">  ]</a>
+<a class="sourceLine" id="cb9-17" data-line-number="17"></a>
+<a class="sourceLine" id="cb9-18" data-line-number="18">_digit <span class="fu">=</span> <span class="st">&quot;0123456789&quot;</span></a></code></pre></div>
+<p>Test cases:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" data-line-number="1"><span class="ot">test_cases_parse_varexpr ::</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb10-2" data-line-number="2">test_cases_parse_varexpr <span class="fu">=</span> and</a>
+<a class="sourceLine" id="cb10-3" data-line-number="3">  [ testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Var</span> <span class="dt">Expr</span>))</a>
+<a class="sourceLine" id="cb10-4" data-line-number="4">      <span class="st">&quot;x&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)</a>
+<a class="sourceLine" id="cb10-5" data-line-number="5">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Var</span> <span class="dt">Expr</span>))</a>
+<a class="sourceLine" id="cb10-6" data-line-number="6">      <span class="st">&quot;x0&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Var</span> <span class="st">&quot;x0&quot;</span>)</a>
+<a class="sourceLine" id="cb10-7" data-line-number="7">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Var</span> <span class="dt">Expr</span>))</a>
+<a class="sourceLine" id="cb10-8" data-line-number="8">      <span class="st">&quot;xA0&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Var</span> <span class="st">&quot;xA0&quot;</span>)</a>
+<a class="sourceLine" id="cb10-9" data-line-number="9">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Var</span> <span class="dt">Expr</span>))</a>
+<a class="sourceLine" id="cb10-10" data-line-number="10">      <span class="st">&quot;xa0&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Var</span> <span class="st">&quot;xa0&quot;</span>)</a>
+<a class="sourceLine" id="cb10-11" data-line-number="11">  ]</a></code></pre></div>
+<p>Expression constants are the same as variables, but start with a backslash.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb11-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">PrettyBasic</span> (<span class="dt">Con</span> <span class="dt">Expr</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb11-2" data-line-number="2">  prettyBasic (<span class="dt">Con</span> s) <span class="fu">=</span> <span class="ch">&#39;\\&#39;</span> <span class="fu">:</span> s</a>
+<a class="sourceLine" id="cb11-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb11-4" data-line-number="4">  parseBasic <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb11-5" data-line-number="5">    char <span class="ch">&#39;\\&#39;</span></a>
+<a class="sourceLine" id="cb11-6" data-line-number="6">    a <span class="ot">&lt;-</span> oneOf _latin_lc</a>
+<a class="sourceLine" id="cb11-7" data-line-number="7">    as <span class="ot">&lt;-</span> many <span class="fu">$</span> oneOf _latin</a>
+<a class="sourceLine" id="cb11-8" data-line-number="8">    bs <span class="ot">&lt;-</span> many <span class="fu">$</span> oneOf _digit</a>
+<a class="sourceLine" id="cb11-9" data-line-number="9">    spaceChars</a>
+<a class="sourceLine" id="cb11-10" data-line-number="10">    return (<span class="dt">Con</span> <span class="fu">$</span> a<span class="fu">:</span>as <span class="fu">++</span> bs)</a></code></pre></div>
+<p>Test cases:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb12-1" data-line-number="1"><span class="ot">test_cases_parse_conexpr ::</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb12-2" data-line-number="2">test_cases_parse_conexpr <span class="fu">=</span> and</a>
+<a class="sourceLine" id="cb12-3" data-line-number="3">  [ testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Con</span> <span class="dt">Expr</span>))</a>
+<a class="sourceLine" id="cb12-4" data-line-number="4">      <span class="st">&quot;\\x&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Con</span> <span class="st">&quot;x&quot;</span>)</a>
+<a class="sourceLine" id="cb12-5" data-line-number="5">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Con</span> <span class="dt">Expr</span>))</a>
+<a class="sourceLine" id="cb12-6" data-line-number="6">      <span class="st">&quot;\\x0&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Con</span> <span class="st">&quot;x0&quot;</span>)</a>
+<a class="sourceLine" id="cb12-7" data-line-number="7">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Con</span> <span class="dt">Expr</span>))</a>
+<a class="sourceLine" id="cb12-8" data-line-number="8">      <span class="st">&quot;\\xA0&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Con</span> <span class="st">&quot;xA0&quot;</span>)</a>
+<a class="sourceLine" id="cb12-9" data-line-number="9">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Con</span> <span class="dt">Expr</span>))</a>
+<a class="sourceLine" id="cb12-10" data-line-number="10">      <span class="st">&quot;\\xa0&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Con</span> <span class="st">&quot;xa0&quot;</span>)</a>
+<a class="sourceLine" id="cb12-11" data-line-number="11">  ]</a></code></pre></div>
+<p>Now for lambda expressions.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb13-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">PrettyBasic</span> <span class="dt">Expr</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb13-2" data-line-number="2">  prettyBasic <span class="fu">=</span> \<span class="kw">case</span></a>
+<a class="sourceLine" id="cb13-3" data-line-number="3">    <span class="dt">ECon</span> _ c <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb13-4" data-line-number="4">      prettyBasic c</a>
+<a class="sourceLine" id="cb13-5" data-line-number="5">    <span class="dt">EVar</span> _ x <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb13-6" data-line-number="6">      prettyBasic x</a>
+<a class="sourceLine" id="cb13-7" data-line-number="7">    <span class="dt">ELam</span> _ x e <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb13-8" data-line-number="8">      [ <span class="st">&quot;λ&quot;</span>, prettyBasic x, <span class="st">&quot;.&quot;</span>, prettyBasicWrap e ]</a>
+<a class="sourceLine" id="cb13-9" data-line-number="9">    <span class="dt">ELet</span> _ x f g <span class="ot">-&gt;</span> unwords</a>
+<a class="sourceLine" id="cb13-10" data-line-number="10">      [ <span class="st">&quot;&#39;let&quot;</span>, prettyBasic x</a>
+<a class="sourceLine" id="cb13-11" data-line-number="11">      , <span class="st">&quot;=&quot;</span>, prettyBasicWrap f</a>
+<a class="sourceLine" id="cb13-12" data-line-number="12">      , <span class="st">&quot;&#39;in&quot;</span>, prettyBasicWrap g</a>
+<a class="sourceLine" id="cb13-13" data-line-number="13">      ]</a>
+<a class="sourceLine" id="cb13-14" data-line-number="14">    <span class="dt">EApp</span> _ e f <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb13-15" data-line-number="15">      prettyBasicWrap e <span class="fu">++</span> <span class="st">&quot; &quot;</span> <span class="fu">++</span> prettyBasicWrap f</a>
+<a class="sourceLine" id="cb13-16" data-line-number="16"></a>
+<a class="sourceLine" id="cb13-17" data-line-number="17">  parseBasic <span class="fu">=</span></a>
+<a class="sourceLine" id="cb13-18" data-line-number="18">    chainl1 parseForm (<span class="kw">do</span> { loc <span class="ot">&lt;-</span> getLoc; return (<span class="dt">EApp</span> loc) })</a>
+<a class="sourceLine" id="cb13-19" data-line-number="19">    <span class="kw">where</span></a>
+<a class="sourceLine" id="cb13-20" data-line-number="20">      parseForm <span class="fu">=</span></a>
+<a class="sourceLine" id="cb13-21" data-line-number="21">        parseLam <span class="fu">&lt;|&gt;</span> parseLet <span class="fu">&lt;|&gt;</span> parseCon</a>
+<a class="sourceLine" id="cb13-22" data-line-number="22">          <span class="fu">&lt;|&gt;</span> parseVar <span class="fu">&lt;|&gt;</span> fenced parseBasic</a>
+<a class="sourceLine" id="cb13-23" data-line-number="23"></a>
+<a class="sourceLine" id="cb13-24" data-line-number="24">      parseLam <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb13-25" data-line-number="25">        loc <span class="ot">&lt;-</span> try <span class="fu">$</span> getLoc <span class="fu">&lt;*</span> (char <span class="ch">&#39;λ&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars)</a>
+<a class="sourceLine" id="cb13-26" data-line-number="26">        x <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb13-27" data-line-number="27">        spaceChars <span class="fu">&gt;&gt;</span> char <span class="ch">&#39;.&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb13-28" data-line-number="28">        e <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb13-29" data-line-number="29">        return <span class="fu">$</span> <span class="dt">ELam</span> loc x e</a>
+<a class="sourceLine" id="cb13-30" data-line-number="30"></a>
+<a class="sourceLine" id="cb13-31" data-line-number="31">      parseLet <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb13-32" data-line-number="32">        loc <span class="ot">&lt;-</span> try <span class="fu">$</span> getLoc <span class="fu">&lt;*</span> (string <span class="st">&quot;&#39;let&quot;</span> <span class="fu">&gt;&gt;</span> spaceChars)</a>
+<a class="sourceLine" id="cb13-33" data-line-number="33">        x <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb13-34" data-line-number="34">        char <span class="ch">&#39;=&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb13-35" data-line-number="35">        e1 <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb13-36" data-line-number="36">        string <span class="st">&quot;&#39;in&quot;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb13-37" data-line-number="37">        e2 <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb13-38" data-line-number="38">        return <span class="fu">$</span> <span class="dt">ELet</span> loc x e1 e2</a>
+<a class="sourceLine" id="cb13-39" data-line-number="39"></a>
+<a class="sourceLine" id="cb13-40" data-line-number="40">      parseCon <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb13-41" data-line-number="41">        loc <span class="ot">&lt;-</span> getLoc</a>
+<a class="sourceLine" id="cb13-42" data-line-number="42">        c <span class="ot">&lt;-</span> try parseBasic</a>
+<a class="sourceLine" id="cb13-43" data-line-number="43">        return (<span class="dt">ECon</span> loc c)</a>
+<a class="sourceLine" id="cb13-44" data-line-number="44"></a>
+<a class="sourceLine" id="cb13-45" data-line-number="45">      parseVar <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb13-46" data-line-number="46">        loc <span class="ot">&lt;-</span> getLoc</a>
+<a class="sourceLine" id="cb13-47" data-line-number="47">        x <span class="ot">&lt;-</span> try parseBasic</a>
+<a class="sourceLine" id="cb13-48" data-line-number="48">        return (<span class="dt">EVar</span> loc x)</a>
+<a class="sourceLine" id="cb13-49" data-line-number="49"></a>
+<a class="sourceLine" id="cb13-50" data-line-number="50">      fenced p <span class="fu">=</span> parens p <span class="fu">&lt;|&gt;</span> braces p</a></code></pre></div>
+<p>Application is left associative, so that <span class="math inline">\(x y z\)</span> parses as <span class="math inline">\((xy)z\)</span>.</p>
+<p>Test cases:</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb14-1" data-line-number="1"><span class="ot">test_cases_parse_expr ::</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb14-2" data-line-number="2">test_cases_parse_expr <span class="fu">=</span> and</a>
+<a class="sourceLine" id="cb14-3" data-line-number="3">  [ testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Expr</span>)</a>
+<a class="sourceLine" id="cb14-4" data-line-number="4">      <span class="st">&quot;x&quot;</span></a>
+<a class="sourceLine" id="cb14-5" data-line-number="5">      (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>))</a>
+<a class="sourceLine" id="cb14-6" data-line-number="6"></a>
+<a class="sourceLine" id="cb14-7" data-line-number="7">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Expr</span>)</a>
+<a class="sourceLine" id="cb14-8" data-line-number="8">      <span class="st">&quot;x y&quot;</span></a>
+<a class="sourceLine" id="cb14-9" data-line-number="9">      (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">EApp</span> <span class="dt">Q</span> (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)))</a>
+<a class="sourceLine" id="cb14-10" data-line-number="10"></a>
+<a class="sourceLine" id="cb14-11" data-line-number="11">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Expr</span>)</a>
+<a class="sourceLine" id="cb14-12" data-line-number="12">      <span class="st">&quot;x y z&quot;</span></a>
+<a class="sourceLine" id="cb14-13" data-line-number="13">      (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">EApp</span> <span class="dt">Q</span></a>
+<a class="sourceLine" id="cb14-14" data-line-number="14">        (<span class="dt">EApp</span> <span class="dt">Q</span> (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)))</a>
+<a class="sourceLine" id="cb14-15" data-line-number="15">        (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;z&quot;</span>)))</a>
+<a class="sourceLine" id="cb14-16" data-line-number="16"></a>
+<a class="sourceLine" id="cb14-17" data-line-number="17">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Expr</span>)</a>
+<a class="sourceLine" id="cb14-18" data-line-number="18">      <span class="st">&quot;x (y z)&quot;</span></a>
+<a class="sourceLine" id="cb14-19" data-line-number="19">      (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">EApp</span> <span class="dt">Q</span></a>
+<a class="sourceLine" id="cb14-20" data-line-number="20">        (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>))</a>
+<a class="sourceLine" id="cb14-21" data-line-number="21">        (<span class="dt">EApp</span> <span class="dt">Q</span> (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;z&quot;</span>))))</a>
+<a class="sourceLine" id="cb14-22" data-line-number="22"></a>
+<a class="sourceLine" id="cb14-23" data-line-number="23">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Expr</span>)</a>
+<a class="sourceLine" id="cb14-24" data-line-number="24">      <span class="st">&quot;λx.x&quot;</span></a>
+<a class="sourceLine" id="cb14-25" data-line-number="25">      (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">ELam</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)))</a>
+<a class="sourceLine" id="cb14-26" data-line-number="26"></a>
+<a class="sourceLine" id="cb14-27" data-line-number="27">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Expr</span>)</a>
+<a class="sourceLine" id="cb14-28" data-line-number="28">      <span class="st">&quot;&#39;let x = \\c &#39;in x&quot;</span></a>
+<a class="sourceLine" id="cb14-29" data-line-number="29">      (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">ELet</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>) (<span class="dt">ECon</span> <span class="dt">Q</span> (<span class="dt">Con</span> <span class="st">&quot;c&quot;</span>)) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)))</a>
+<a class="sourceLine" id="cb14-30" data-line-number="30">  ]</a></code></pre></div>
+<h2 id="types">Types</h2>
+<p>Type variables look like expression variables.</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb15-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">PrettyBasic</span> (<span class="dt">Var</span> <span class="dt">MonoType</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb15-2" data-line-number="2">  prettyBasic (<span class="dt">Var</span> s) <span class="fu">=</span> s</a>
+<a class="sourceLine" id="cb15-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb15-4" data-line-number="4">  parseBasic <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb15-5" data-line-number="5">    a <span class="ot">&lt;-</span> oneOf _latin_lc</a>
+<a class="sourceLine" id="cb15-6" data-line-number="6">    as <span class="ot">&lt;-</span> many <span class="fu">$</span> oneOf _latin</a>
+<a class="sourceLine" id="cb15-7" data-line-number="7">    bs <span class="ot">&lt;-</span> many <span class="fu">$</span> oneOf _digit</a>
+<a class="sourceLine" id="cb15-8" data-line-number="8">    spaceChars</a>
+<a class="sourceLine" id="cb15-9" data-line-number="9">    return (<span class="dt">Var</span> <span class="fu">$</span> a<span class="fu">:</span>as <span class="fu">++</span> bs)</a></code></pre></div>
+<p>Test cases:</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb16-1" data-line-number="1"><span class="ot">test_cases_parse_varmonotype ::</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb16-2" data-line-number="2">test_cases_parse_varmonotype <span class="fu">=</span> and</a>
+<a class="sourceLine" id="cb16-3" data-line-number="3">  [ testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Var</span> <span class="dt">MonoType</span>))</a>
+<a class="sourceLine" id="cb16-4" data-line-number="4">      <span class="st">&quot;x&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)</a>
+<a class="sourceLine" id="cb16-5" data-line-number="5">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Var</span> <span class="dt">MonoType</span>))</a>
+<a class="sourceLine" id="cb16-6" data-line-number="6">      <span class="st">&quot;x0&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Var</span> <span class="st">&quot;x0&quot;</span>)</a>
+<a class="sourceLine" id="cb16-7" data-line-number="7">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Var</span> <span class="dt">MonoType</span>))</a>
+<a class="sourceLine" id="cb16-8" data-line-number="8">      <span class="st">&quot;xA0&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Var</span> <span class="st">&quot;xA0&quot;</span>)</a>
+<a class="sourceLine" id="cb16-9" data-line-number="9">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Var</span> <span class="dt">MonoType</span>))</a>
+<a class="sourceLine" id="cb16-10" data-line-number="10">      <span class="st">&quot;xa0&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Var</span> <span class="st">&quot;xa0&quot;</span>)</a>
+<a class="sourceLine" id="cb16-11" data-line-number="11">  ]</a></code></pre></div>
+<p>Type constants are like type variables, but must start with an upper case latin character.</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb17-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">PrettyBasic</span> (<span class="dt">Con</span> <span class="dt">MonoType</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb17-2" data-line-number="2">  prettyBasic (<span class="dt">Con</span> s) <span class="fu">=</span> s</a>
+<a class="sourceLine" id="cb17-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb17-4" data-line-number="4">  parseBasic <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb17-5" data-line-number="5">    a <span class="ot">&lt;-</span> oneOf _latin_uc</a>
+<a class="sourceLine" id="cb17-6" data-line-number="6">    as <span class="ot">&lt;-</span> many <span class="fu">$</span> oneOf _latin</a>
+<a class="sourceLine" id="cb17-7" data-line-number="7">    bs <span class="ot">&lt;-</span> many <span class="fu">$</span> oneOf _digit</a>
+<a class="sourceLine" id="cb17-8" data-line-number="8">    spaceChars</a>
+<a class="sourceLine" id="cb17-9" data-line-number="9">    return (<span class="dt">Con</span> <span class="fu">$</span> a<span class="fu">:</span>as <span class="fu">++</span> bs)</a>
+<a class="sourceLine" id="cb17-10" data-line-number="10"></a>
+<a class="sourceLine" id="cb17-11" data-line-number="11">_latin_uc <span class="fu">=</span> <span class="st">&quot;ABCDEFGHIJKLMNOPQRSTUVWXYZ&quot;</span></a></code></pre></div>
+<p>Test cases:</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb18-1" data-line-number="1"><span class="ot">test_cases_parse_conmonotype ::</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb18-2" data-line-number="2">test_cases_parse_conmonotype <span class="fu">=</span> and</a>
+<a class="sourceLine" id="cb18-3" data-line-number="3">  [ testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Con</span> <span class="dt">MonoType</span>))</a>
+<a class="sourceLine" id="cb18-4" data-line-number="4">      <span class="st">&quot;X&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Con</span> <span class="st">&quot;X&quot;</span>)</a>
+<a class="sourceLine" id="cb18-5" data-line-number="5">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Con</span> <span class="dt">MonoType</span>))</a>
+<a class="sourceLine" id="cb18-6" data-line-number="6">      <span class="st">&quot;X0&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Con</span> <span class="st">&quot;X0&quot;</span>)</a>
+<a class="sourceLine" id="cb18-7" data-line-number="7">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Con</span> <span class="dt">MonoType</span>))</a>
+<a class="sourceLine" id="cb18-8" data-line-number="8">      <span class="st">&quot;XA0&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Con</span> <span class="st">&quot;XA0&quot;</span>)</a>
+<a class="sourceLine" id="cb18-9" data-line-number="9">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Con</span> <span class="dt">MonoType</span>))</a>
+<a class="sourceLine" id="cb18-10" data-line-number="10">      <span class="st">&quot;Xa0&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Con</span> <span class="st">&quot;Xa0&quot;</span>)</a>
+<a class="sourceLine" id="cb18-11" data-line-number="11">  ]</a></code></pre></div>
+<p>Now for the grammar of monotypes.</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb19-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">PrettyBasic</span> <span class="dt">MonoType</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb19-2" data-line-number="2">  prettyBasic <span class="fu">=</span> \<span class="kw">case</span></a>
+<a class="sourceLine" id="cb19-3" data-line-number="3">    <span class="dt">TCon</span> _ c <span class="ot">-&gt;</span> prettyBasic c</a>
+<a class="sourceLine" id="cb19-4" data-line-number="4">    <span class="dt">TVar</span> _ x <span class="ot">-&gt;</span> prettyBasic x</a>
+<a class="sourceLine" id="cb19-5" data-line-number="5">    <span class="dt">TArr</span> _ a b <span class="ot">-&gt;</span> unwords</a>
+<a class="sourceLine" id="cb19-6" data-line-number="6">      [ prettyBasicWrap a</a>
+<a class="sourceLine" id="cb19-7" data-line-number="7">      , <span class="st">&quot;-&gt;&quot;</span></a>
+<a class="sourceLine" id="cb19-8" data-line-number="8">      , prettyBasic b</a>
+<a class="sourceLine" id="cb19-9" data-line-number="9">      ]</a>
+<a class="sourceLine" id="cb19-10" data-line-number="10">    <span class="dt">TSt1</span> _ c a <span class="ot">-&gt;</span> unwords</a>
+<a class="sourceLine" id="cb19-11" data-line-number="11">      [ prettyBasic c</a>
+<a class="sourceLine" id="cb19-12" data-line-number="12">      , prettyBasicWrap a</a>
+<a class="sourceLine" id="cb19-13" data-line-number="13">      ]</a>
+<a class="sourceLine" id="cb19-14" data-line-number="14">    <span class="dt">TSt2</span> _ c a b <span class="ot">-&gt;</span> unwords</a>
+<a class="sourceLine" id="cb19-15" data-line-number="15">      [ prettyBasic c</a>
+<a class="sourceLine" id="cb19-16" data-line-number="16">      , prettyBasicWrap a</a>
+<a class="sourceLine" id="cb19-17" data-line-number="17">      , prettyBasicWrap b</a>
+<a class="sourceLine" id="cb19-18" data-line-number="18">      ]</a>
+<a class="sourceLine" id="cb19-19" data-line-number="19"></a>
+<a class="sourceLine" id="cb19-20" data-line-number="20">  parseBasic <span class="fu">=</span> chainr1 (parseF <span class="fu">&lt;|&gt;</span> parseForm) parseArr</a>
+<a class="sourceLine" id="cb19-21" data-line-number="21">    <span class="kw">where</span></a>
+<a class="sourceLine" id="cb19-22" data-line-number="22">      parseForm <span class="fu">=</span> parseCon <span class="fu">&lt;|&gt;</span> parseVar <span class="fu">&lt;|&gt;</span> parens parseBasic</a>
+<a class="sourceLine" id="cb19-23" data-line-number="23"></a>
+<a class="sourceLine" id="cb19-24" data-line-number="24">      parseF <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb19-25" data-line-number="25">        loc <span class="ot">&lt;-</span> getLoc</a>
+<a class="sourceLine" id="cb19-26" data-line-number="26">        c <span class="ot">&lt;-</span> try parseBasic</a>
+<a class="sourceLine" id="cb19-27" data-line-number="27">        option (<span class="dt">TCon</span> loc c) <span class="fu">$</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb19-28" data-line-number="28">          x <span class="ot">&lt;-</span> parseForm</a>
+<a class="sourceLine" id="cb19-29" data-line-number="29">          option (<span class="dt">TSt1</span> loc c x) <span class="fu">$</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb19-30" data-line-number="30">            y <span class="ot">&lt;-</span> parseForm</a>
+<a class="sourceLine" id="cb19-31" data-line-number="31">            return <span class="fu">$</span> <span class="dt">TSt2</span> loc c x y</a>
+<a class="sourceLine" id="cb19-32" data-line-number="32"></a>
+<a class="sourceLine" id="cb19-33" data-line-number="33">      parseArr <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb19-34" data-line-number="34">        loc <span class="ot">&lt;-</span> getLoc</a>
+<a class="sourceLine" id="cb19-35" data-line-number="35">        string <span class="st">&quot;-&gt;&quot;</span></a>
+<a class="sourceLine" id="cb19-36" data-line-number="36">        spaceChars</a>
+<a class="sourceLine" id="cb19-37" data-line-number="37">        return (<span class="dt">TArr</span> loc)</a>
+<a class="sourceLine" id="cb19-38" data-line-number="38"></a>
+<a class="sourceLine" id="cb19-39" data-line-number="39">      parseCon <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb19-40" data-line-number="40">        loc <span class="ot">&lt;-</span> getLoc</a>
+<a class="sourceLine" id="cb19-41" data-line-number="41">        c <span class="ot">&lt;-</span> try parseBasic</a>
+<a class="sourceLine" id="cb19-42" data-line-number="42">        return (<span class="dt">TCon</span> loc c)</a>
+<a class="sourceLine" id="cb19-43" data-line-number="43"></a>
+<a class="sourceLine" id="cb19-44" data-line-number="44">      parseVar <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb19-45" data-line-number="45">        loc <span class="ot">&lt;-</span> getLoc</a>
+<a class="sourceLine" id="cb19-46" data-line-number="46">        x <span class="ot">&lt;-</span> try parseBasic</a>
+<a class="sourceLine" id="cb19-47" data-line-number="47">        return (<span class="dt">TVar</span> loc x)</a></code></pre></div>
+<p>Note that the arrow type is right associative, so that <span class="math inline">\(a \rightarrow b \rightarrow c\)</span> parses as <span class="math inline">\(a \rightarrow (b \rightarrow c)\)</span>.</p>
+<p>Test cases:</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb20-1" data-line-number="1"><span class="ot">test_cases_parse_monotype ::</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb20-2" data-line-number="2">test_cases_parse_monotype <span class="fu">=</span> and</a>
+<a class="sourceLine" id="cb20-3" data-line-number="3">  [ testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">MonoType</span>)</a>
+<a class="sourceLine" id="cb20-4" data-line-number="4">      <span class="st">&quot;x&quot;</span></a>
+<a class="sourceLine" id="cb20-5" data-line-number="5">      (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>))</a>
+<a class="sourceLine" id="cb20-6" data-line-number="6"></a>
+<a class="sourceLine" id="cb20-7" data-line-number="7">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">MonoType</span>)</a>
+<a class="sourceLine" id="cb20-8" data-line-number="8">      <span class="st">&quot;x -&gt; y&quot;</span></a>
+<a class="sourceLine" id="cb20-9" data-line-number="9">      (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">TArr</span> <span class="dt">Q</span> (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)) (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)))</a>
+<a class="sourceLine" id="cb20-10" data-line-number="10"></a>
+<a class="sourceLine" id="cb20-11" data-line-number="11">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">MonoType</span>)</a>
+<a class="sourceLine" id="cb20-12" data-line-number="12">      <span class="st">&quot;x -&gt; y -&gt; z&quot;</span></a>
+<a class="sourceLine" id="cb20-13" data-line-number="13">      (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">TArr</span> <span class="dt">Q</span></a>
+<a class="sourceLine" id="cb20-14" data-line-number="14">        (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>))</a>
+<a class="sourceLine" id="cb20-15" data-line-number="15">        (<span class="dt">TArr</span> <span class="dt">Q</span> (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)) (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;z&quot;</span>))))</a>
+<a class="sourceLine" id="cb20-16" data-line-number="16"></a>
+<a class="sourceLine" id="cb20-17" data-line-number="17">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">MonoType</span>)</a>
+<a class="sourceLine" id="cb20-18" data-line-number="18">      <span class="st">&quot;(x -&gt; y) -&gt; z&quot;</span></a>
+<a class="sourceLine" id="cb20-19" data-line-number="19">      (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">TArr</span> <span class="dt">Q</span></a>
+<a class="sourceLine" id="cb20-20" data-line-number="20">        (<span class="dt">TArr</span> <span class="dt">Q</span> (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)) (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)))</a>
+<a class="sourceLine" id="cb20-21" data-line-number="21">        (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;z&quot;</span>)))</a>
+<a class="sourceLine" id="cb20-22" data-line-number="22"></a>
+<a class="sourceLine" id="cb20-23" data-line-number="23">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">MonoType</span>)</a>
+<a class="sourceLine" id="cb20-24" data-line-number="24">      <span class="st">&quot;C&quot;</span></a>
+<a class="sourceLine" id="cb20-25" data-line-number="25">      (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">TCon</span> <span class="dt">Q</span> (<span class="dt">Con</span> <span class="st">&quot;C&quot;</span>))</a>
+<a class="sourceLine" id="cb20-26" data-line-number="26"></a>
+<a class="sourceLine" id="cb20-27" data-line-number="27">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">MonoType</span>)</a>
+<a class="sourceLine" id="cb20-28" data-line-number="28">      <span class="st">&quot;C x&quot;</span></a>
+<a class="sourceLine" id="cb20-29" data-line-number="29">      (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">TSt1</span> <span class="dt">Q</span> (<span class="dt">Con</span> <span class="st">&quot;C&quot;</span>) (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)))</a>
+<a class="sourceLine" id="cb20-30" data-line-number="30"></a>
+<a class="sourceLine" id="cb20-31" data-line-number="31">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">MonoType</span>)</a>
+<a class="sourceLine" id="cb20-32" data-line-number="32">      <span class="st">&quot;C x y&quot;</span></a>
+<a class="sourceLine" id="cb20-33" data-line-number="33">      (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">TSt2</span> <span class="dt">Q</span> (<span class="dt">Con</span> <span class="st">&quot;C&quot;</span>) (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)) (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)))</a>
+<a class="sourceLine" id="cb20-34" data-line-number="34">  ]</a></code></pre></div>
+<p>And polytypes.</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb21-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">PrettyBasic</span> <span class="dt">PolyType</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb21-2" data-line-number="2">  prettyBasic (<span class="dt">ForAll</span> as tau) <span class="fu">=</span> unwords</a>
+<a class="sourceLine" id="cb21-3" data-line-number="3">    [ <span class="st">&quot;∀&quot;</span></a>
+<a class="sourceLine" id="cb21-4" data-line-number="4">    , vars</a>
+<a class="sourceLine" id="cb21-5" data-line-number="5">    , <span class="st">&quot;.&quot;</span></a>
+<a class="sourceLine" id="cb21-6" data-line-number="6">    , prettyBasic tau</a>
+<a class="sourceLine" id="cb21-7" data-line-number="7">    ]</a>
+<a class="sourceLine" id="cb21-8" data-line-number="8">    <span class="kw">where</span></a>
+<a class="sourceLine" id="cb21-9" data-line-number="9">      vars <span class="fu">=</span> <span class="kw">if</span> S.null as</a>
+<a class="sourceLine" id="cb21-10" data-line-number="10">        <span class="kw">then</span> <span class="st">&quot;∅&quot;</span></a>
+<a class="sourceLine" id="cb21-11" data-line-number="11">        <span class="kw">else</span> unwords <span class="fu">.</span> map prettyBasic <span class="fu">.</span> S.toList <span class="fu">$</span> as</a>
+<a class="sourceLine" id="cb21-12" data-line-number="12"></a>
+<a class="sourceLine" id="cb21-13" data-line-number="13">  parseBasic <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb21-14" data-line-number="14">    char <span class="ch">&#39;∀&#39;</span></a>
+<a class="sourceLine" id="cb21-15" data-line-number="15">    spaceChars</a>
+<a class="sourceLine" id="cb21-16" data-line-number="16">    as <span class="ot">&lt;-</span> parseNoVars <span class="fu">&lt;|&gt;</span> parseVars</a>
+<a class="sourceLine" id="cb21-17" data-line-number="17">    char <span class="ch">&#39;.&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb21-18" data-line-number="18">    tau <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb21-19" data-line-number="19">    return <span class="fu">$</span> <span class="dt">ForAll</span> as tau</a>
+<a class="sourceLine" id="cb21-20" data-line-number="20">    <span class="kw">where</span></a>
+<a class="sourceLine" id="cb21-21" data-line-number="21">      parseNoVars <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb21-22" data-line-number="22">        try (char <span class="ch">&#39;∅&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars)</a>
+<a class="sourceLine" id="cb21-23" data-line-number="23">        return <span class="fu">$</span> S.empty</a>
+<a class="sourceLine" id="cb21-24" data-line-number="24"></a>
+<a class="sourceLine" id="cb21-25" data-line-number="25">      parseVars <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb21-26" data-line-number="26">        as <span class="ot">&lt;-</span> sepBy1 parseBasic spaceChars</a>
+<a class="sourceLine" id="cb21-27" data-line-number="27">        spaceChars</a>
+<a class="sourceLine" id="cb21-28" data-line-number="28">        return <span class="fu">$</span> S.fromList as</a></code></pre></div>
+<p>Test cases:</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb22-1" data-line-number="1"><span class="ot">test_cases_parse_polytype ::</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb22-2" data-line-number="2">test_cases_parse_polytype <span class="fu">=</span> and</a>
+<a class="sourceLine" id="cb22-3" data-line-number="3">  [ testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">PolyType</span>)</a>
+<a class="sourceLine" id="cb22-4" data-line-number="4">      <span class="st">&quot;∀x. x&quot;</span></a>
+<a class="sourceLine" id="cb22-5" data-line-number="5">      (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">ForAll</span></a>
+<a class="sourceLine" id="cb22-6" data-line-number="6">        (S.fromList [<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>])</a>
+<a class="sourceLine" id="cb22-7" data-line-number="7">        (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)))</a>
+<a class="sourceLine" id="cb22-8" data-line-number="8"></a>
+<a class="sourceLine" id="cb22-9" data-line-number="9">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">PolyType</span>)</a>
+<a class="sourceLine" id="cb22-10" data-line-number="10">      <span class="st">&quot;∀x y. x -&gt; y&quot;</span></a>
+<a class="sourceLine" id="cb22-11" data-line-number="11">      (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">ForAll</span></a>
+<a class="sourceLine" id="cb22-12" data-line-number="12">        (S.fromList [<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>, <span class="dt">Var</span> <span class="st">&quot;y&quot;</span>])</a>
+<a class="sourceLine" id="cb22-13" data-line-number="13">        (<span class="dt">TArr</span> <span class="dt">Q</span> (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)) (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>))))</a>
+<a class="sourceLine" id="cb22-14" data-line-number="14"></a>
+<a class="sourceLine" id="cb22-15" data-line-number="15">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">PolyType</span>)</a>
+<a class="sourceLine" id="cb22-16" data-line-number="16">      <span class="st">&quot;∀∅. x&quot;</span></a>
+<a class="sourceLine" id="cb22-17" data-line-number="17">      (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">ForAll</span></a>
+<a class="sourceLine" id="cb22-18" data-line-number="18">        (S.fromList [])</a>
+<a class="sourceLine" id="cb22-19" data-line-number="19">        (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)))</a>
+<a class="sourceLine" id="cb22-20" data-line-number="20">  ]</a></code></pre></div>
+<h2 id="substitutions">Substitutions</h2>
+<p>Substitutions will be notated with <code>:-&gt;</code>, separated by semicolons and wrapped in square brackets.</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb23-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">PrettyBasic</span> (<span class="dt">Sub</span> <span class="dt">Expr</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb23-2" data-line-number="2">  prettyBasic (<span class="dt">Sub</span> m) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb23-3" data-line-number="3">    <span class="st">&quot;[&quot;</span> <span class="fu">++</span> (intercalate <span class="st">&quot;; &quot;</span> <span class="fu">$</span> map f <span class="fu">$</span> M.toList m) <span class="fu">++</span> <span class="st">&quot;]&quot;</span></a>
+<a class="sourceLine" id="cb23-4" data-line-number="4">    <span class="kw">where</span></a>
+<a class="sourceLine" id="cb23-5" data-line-number="5">      f (x,e) <span class="fu">=</span> prettyBasic x <span class="fu">++</span> <span class="st">&quot; :-&gt; &quot;</span> <span class="fu">++</span> prettyBasic e</a>
+<a class="sourceLine" id="cb23-6" data-line-number="6"></a>
+<a class="sourceLine" id="cb23-7" data-line-number="7">  parseBasic <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb23-8" data-line-number="8">    try (char <span class="ch">&#39;[&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars)</a>
+<a class="sourceLine" id="cb23-9" data-line-number="9">    as <span class="ot">&lt;-</span> sepBy parseSub (char <span class="ch">&#39;;&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars)</a>
+<a class="sourceLine" id="cb23-10" data-line-number="10">    char <span class="ch">&#39;]&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb23-11" data-line-number="11">    return <span class="fu">$</span> <span class="dt">Sub</span> <span class="fu">$</span> M.fromList as</a>
+<a class="sourceLine" id="cb23-12" data-line-number="12">    <span class="kw">where</span></a>
+<a class="sourceLine" id="cb23-13" data-line-number="13">      parseSub <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb23-14" data-line-number="14">        x <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb23-15" data-line-number="15">        string <span class="st">&quot;:-&gt;&quot;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb23-16" data-line-number="16">        e <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb23-17" data-line-number="17">        return (x,e)</a></code></pre></div>
+<p>Test cases:</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb24-1" data-line-number="1"><span class="ot">test_cases_parse_subexpr ::</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb24-2" data-line-number="2">test_cases_parse_subexpr <span class="fu">=</span> and</a>
+<a class="sourceLine" id="cb24-3" data-line-number="3">  [ testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Sub</span> <span class="dt">Expr</span>))</a>
+<a class="sourceLine" id="cb24-4" data-line-number="4">      <span class="st">&quot;[x :-&gt; e]&quot;</span></a>
+<a class="sourceLine" id="cb24-5" data-line-number="5">      (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Sub</span> <span class="fu">$</span> M.fromList</a>
+<a class="sourceLine" id="cb24-6" data-line-number="6">        [ (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>, <span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;e&quot;</span>))</a>
+<a class="sourceLine" id="cb24-7" data-line-number="7">        ])</a>
+<a class="sourceLine" id="cb24-8" data-line-number="8"></a>
+<a class="sourceLine" id="cb24-9" data-line-number="9">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Sub</span> <span class="dt">Expr</span>))</a>
+<a class="sourceLine" id="cb24-10" data-line-number="10">      <span class="st">&quot;[x :-&gt; e; y :-&gt; f g]&quot;</span></a>
+<a class="sourceLine" id="cb24-11" data-line-number="11">      (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Sub</span> <span class="fu">$</span> M.fromList</a>
+<a class="sourceLine" id="cb24-12" data-line-number="12">        [ (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>, <span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;e&quot;</span>))</a>
+<a class="sourceLine" id="cb24-13" data-line-number="13">        , (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>, <span class="dt">EApp</span> <span class="dt">Q</span> (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;f&quot;</span>)) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;g&quot;</span>)))</a>
+<a class="sourceLine" id="cb24-14" data-line-number="14">        ])</a>
+<a class="sourceLine" id="cb24-15" data-line-number="15"></a>
+<a class="sourceLine" id="cb24-16" data-line-number="16">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Sub</span> <span class="dt">Expr</span>))</a>
+<a class="sourceLine" id="cb24-17" data-line-number="17">      <span class="st">&quot;[]&quot;</span></a>
+<a class="sourceLine" id="cb24-18" data-line-number="18">      (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Sub</span> <span class="fu">$</span> M.fromList [])</a>
+<a class="sourceLine" id="cb24-19" data-line-number="19">  ]</a></code></pre></div>
+<h2 id="judgements">Judgements</h2>
+<p>Judgement variables start with an upper case character so they can be easily distinguished from expression variables.</p>
+<div class="sourceCode" id="cb25"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb25-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">PrettyBasic</span> (<span class="dt">Var</span> <span class="dt">Jud</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb25-2" data-line-number="2">  prettyBasic (<span class="dt">Var</span> s) <span class="fu">=</span> s</a>
+<a class="sourceLine" id="cb25-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb25-4" data-line-number="4">  parseBasic <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb25-5" data-line-number="5">    a <span class="ot">&lt;-</span> oneOf _latin_uc</a>
+<a class="sourceLine" id="cb25-6" data-line-number="6">    as <span class="ot">&lt;-</span> many <span class="fu">$</span> oneOf _latin</a>
+<a class="sourceLine" id="cb25-7" data-line-number="7">    bs <span class="ot">&lt;-</span> many <span class="fu">$</span> oneOf _digit</a>
+<a class="sourceLine" id="cb25-8" data-line-number="8">    spaceChars</a>
+<a class="sourceLine" id="cb25-9" data-line-number="9">    return (<span class="dt">Var</span> <span class="fu">$</span> a<span class="fu">:</span>as <span class="fu">++</span> bs)</a></code></pre></div>
+<p>Test cases:</p>
+<div class="sourceCode" id="cb26"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb26-1" data-line-number="1"><span class="ot">test_cases_parse_varjud ::</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb26-2" data-line-number="2">test_cases_parse_varjud <span class="fu">=</span> and</a>
+<a class="sourceLine" id="cb26-3" data-line-number="3">  [ testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Var</span> <span class="dt">Jud</span>))</a>
+<a class="sourceLine" id="cb26-4" data-line-number="4">      <span class="st">&quot;X&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Var</span> <span class="st">&quot;X&quot;</span>)</a>
+<a class="sourceLine" id="cb26-5" data-line-number="5">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Var</span> <span class="dt">Jud</span>))</a>
+<a class="sourceLine" id="cb26-6" data-line-number="6">      <span class="st">&quot;X0&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Var</span> <span class="st">&quot;X0&quot;</span>)</a>
+<a class="sourceLine" id="cb26-7" data-line-number="7">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Var</span> <span class="dt">Jud</span>))</a>
+<a class="sourceLine" id="cb26-8" data-line-number="8">      <span class="st">&quot;XA0&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Var</span> <span class="st">&quot;XA0&quot;</span>)</a>
+<a class="sourceLine" id="cb26-9" data-line-number="9">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">Var</span> <span class="dt">Jud</span>))</a>
+<a class="sourceLine" id="cb26-10" data-line-number="10">      <span class="st">&quot;Xa0&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Var</span> <span class="st">&quot;Xa0&quot;</span>)</a>
+<a class="sourceLine" id="cb26-11" data-line-number="11">  ]</a></code></pre></div>
+<p>The judgement grammar uses infix notation; we use parsec’s built in <code>buildExpressionParser</code> for this.</p>
+<div class="sourceCode" id="cb27"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb27-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">PrettyBasic</span> <span class="dt">Jud</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb27-2" data-line-number="2">  prettyBasic <span class="fu">=</span> \<span class="kw">case</span></a>
+<a class="sourceLine" id="cb27-3" data-line-number="3">    <span class="dt">JVar</span> _ x <span class="ot">-&gt;</span> prettyBasic x</a>
+<a class="sourceLine" id="cb27-4" data-line-number="4">    <span class="dt">JNeg</span> _ p <span class="ot">-&gt;</span> <span class="ch">&#39;~&#39;</span> <span class="fu">:</span> prettyBasicWrap p</a>
+<a class="sourceLine" id="cb27-5" data-line-number="5">    <span class="dt">JConj</span> _ p q <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb27-6" data-line-number="6">      [ prettyBasicWrap p, <span class="st">&quot; /\\ &quot;</span>, prettyBasicWrap q ]</a>
+<a class="sourceLine" id="cb27-7" data-line-number="7">    <span class="dt">JDisj</span> _ p q <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb27-8" data-line-number="8">      [ prettyBasicWrap p, <span class="st">&quot; \\/ &quot;</span>, prettyBasicWrap q ]</a>
+<a class="sourceLine" id="cb27-9" data-line-number="9">    <span class="dt">JImpl</span> _ p q <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb27-10" data-line-number="10">      [ prettyBasicWrap p, <span class="st">&quot; =&gt; &quot;</span>, prettyBasicWrap q ]</a>
+<a class="sourceLine" id="cb27-11" data-line-number="11">    <span class="dt">JEqui</span> _ p q <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb27-12" data-line-number="12">      [ prettyBasicWrap p, <span class="st">&quot; &lt;=&gt; &quot;</span>, prettyBasicWrap q ]</a>
+<a class="sourceLine" id="cb27-13" data-line-number="13">    <span class="dt">JEq</span> _ e f <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb27-14" data-line-number="14">      [ prettyBasic e, <span class="st">&quot; == &quot;</span>, prettyBasic f ]</a>
+<a class="sourceLine" id="cb27-15" data-line-number="15">    <span class="dt">JIs</span> _ e m <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb27-16" data-line-number="16">      [ prettyBasicWrap e, <span class="st">&quot; &#39;is &quot;</span>, <span class="st">&quot;\&quot;&quot;</span>, m, <span class="st">&quot;\&quot;&quot;</span> ]</a>
+<a class="sourceLine" id="cb27-17" data-line-number="17">    <span class="dt">JAll</span> _ x p <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb27-18" data-line-number="18">      [ <span class="st">&quot;∀&quot;</span>, prettyBasic x, <span class="st">&quot;.&quot;</span>, prettyBasicWrap p ]</a>
+<a class="sourceLine" id="cb27-19" data-line-number="19"></a>
+<a class="sourceLine" id="cb27-20" data-line-number="20">  parseBasic <span class="fu">=</span> buildExpressionParser ops terms</a>
+<a class="sourceLine" id="cb27-21" data-line-number="21">    <span class="kw">where</span></a>
+<a class="sourceLine" id="cb27-22" data-line-number="22">      ops <span class="fu">=</span></a>
+<a class="sourceLine" id="cb27-23" data-line-number="23">        [ [ <span class="dt">Prefix</span> <span class="fu">$</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb27-24" data-line-number="24">            { loc <span class="ot">&lt;-</span> getLoc</a>
+<a class="sourceLine" id="cb27-25" data-line-number="25">            ; string <span class="st">&quot;~&quot;</span> <span class="fu">&gt;&gt;</span> spaceChars <span class="fu">&gt;&gt;</span> return (<span class="dt">JNeg</span> loc)</a>
+<a class="sourceLine" id="cb27-26" data-line-number="26">            } ]</a>
+<a class="sourceLine" id="cb27-27" data-line-number="27"></a>
+<a class="sourceLine" id="cb27-28" data-line-number="28">        , [ <span class="dt">Infix</span> (<span class="kw">do</span></a>
+<a class="sourceLine" id="cb27-29" data-line-number="29">            { loc <span class="ot">&lt;-</span> getLoc</a>
+<a class="sourceLine" id="cb27-30" data-line-number="30">            ; string <span class="st">&quot;/\\&quot;</span> <span class="fu">&gt;&gt;</span> spaceChars <span class="fu">&gt;&gt;</span> return (<span class="dt">JConj</span> loc)</a>
+<a class="sourceLine" id="cb27-31" data-line-number="31">            }) <span class="dt">AssocNone</span> ]</a>
+<a class="sourceLine" id="cb27-32" data-line-number="32"></a>
+<a class="sourceLine" id="cb27-33" data-line-number="33">        , [ <span class="dt">Infix</span> (<span class="kw">do</span></a>
+<a class="sourceLine" id="cb27-34" data-line-number="34">            { loc <span class="ot">&lt;-</span> getLoc</a>
+<a class="sourceLine" id="cb27-35" data-line-number="35">            ; string <span class="st">&quot;\\/&quot;</span> <span class="fu">&gt;&gt;</span> spaceChars <span class="fu">&gt;&gt;</span> return (<span class="dt">JDisj</span> loc)</a>
+<a class="sourceLine" id="cb27-36" data-line-number="36">            }) <span class="dt">AssocNone</span> ]</a>
+<a class="sourceLine" id="cb27-37" data-line-number="37"></a>
+<a class="sourceLine" id="cb27-38" data-line-number="38">        , [ <span class="dt">Infix</span> (<span class="kw">do</span></a>
+<a class="sourceLine" id="cb27-39" data-line-number="39">            { loc <span class="ot">&lt;-</span> getLoc</a>
+<a class="sourceLine" id="cb27-40" data-line-number="40">            ; string <span class="st">&quot;=&gt;&quot;</span> <span class="fu">&gt;&gt;</span> spaceChars <span class="fu">&gt;&gt;</span> return (<span class="dt">JImpl</span> loc)</a>
+<a class="sourceLine" id="cb27-41" data-line-number="41">            }) <span class="dt">AssocNone</span> ]</a>
+<a class="sourceLine" id="cb27-42" data-line-number="42"></a>
+<a class="sourceLine" id="cb27-43" data-line-number="43">        , [ <span class="dt">Infix</span> (<span class="kw">do</span></a>
+<a class="sourceLine" id="cb27-44" data-line-number="44">            { loc <span class="ot">&lt;-</span> getLoc</a>
+<a class="sourceLine" id="cb27-45" data-line-number="45">            ; string <span class="st">&quot;&lt;=&gt;&quot;</span> <span class="fu">&gt;&gt;</span> spaceChars <span class="fu">&gt;&gt;</span> return (<span class="dt">JEqui</span> loc)</a>
+<a class="sourceLine" id="cb27-46" data-line-number="46">            }) <span class="dt">AssocNone</span> ]</a>
+<a class="sourceLine" id="cb27-47" data-line-number="47"></a>
+<a class="sourceLine" id="cb27-48" data-line-number="48">        , [ <span class="dt">Prefix</span> <span class="fu">$</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb27-49" data-line-number="49">            { loc <span class="ot">&lt;-</span> getLoc</a>
+<a class="sourceLine" id="cb27-50" data-line-number="50">            ; char <span class="ch">&#39;∀&#39;</span>; spaceChars</a>
+<a class="sourceLine" id="cb27-51" data-line-number="51">            ; x <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb27-52" data-line-number="52">            ; char <span class="ch">&#39;.&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars; return (<span class="dt">JAll</span> loc x)</a>
+<a class="sourceLine" id="cb27-53" data-line-number="53">            } ]</a>
+<a class="sourceLine" id="cb27-54" data-line-number="54">        ]</a>
+<a class="sourceLine" id="cb27-55" data-line-number="55"></a>
+<a class="sourceLine" id="cb27-56" data-line-number="56">      terms <span class="fu">=</span> parseVar <span class="fu">&lt;|&gt;</span> parseIs <span class="fu">&lt;|&gt;</span> parseEq <span class="fu">&lt;|&gt;</span> parens parseBasic</a>
+<a class="sourceLine" id="cb27-57" data-line-number="57">        <span class="kw">where</span></a>
+<a class="sourceLine" id="cb27-58" data-line-number="58">          parseVar <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb27-59" data-line-number="59">            loc <span class="ot">&lt;-</span> getLoc</a>
+<a class="sourceLine" id="cb27-60" data-line-number="60">            x <span class="ot">&lt;-</span> try parseBasic</a>
+<a class="sourceLine" id="cb27-61" data-line-number="61">            return (<span class="dt">JVar</span> loc x)</a>
+<a class="sourceLine" id="cb27-62" data-line-number="62"></a>
+<a class="sourceLine" id="cb27-63" data-line-number="63">          parseEq <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb27-64" data-line-number="64">            (e,loc) <span class="ot">&lt;-</span> try <span class="fu">$</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb27-65" data-line-number="65">              e&#39; <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb27-66" data-line-number="66">              loc&#39; <span class="ot">&lt;-</span> getLoc</a>
+<a class="sourceLine" id="cb27-67" data-line-number="67">              string <span class="st">&quot;==&quot;</span> <span class="fu">&gt;&gt;</span> spaces</a>
+<a class="sourceLine" id="cb27-68" data-line-number="68">              return (e&#39;,loc&#39;)</a>
+<a class="sourceLine" id="cb27-69" data-line-number="69">            f <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb27-70" data-line-number="70">            return (<span class="dt">JEq</span> loc e f)</a>
+<a class="sourceLine" id="cb27-71" data-line-number="71"></a>
+<a class="sourceLine" id="cb27-72" data-line-number="72">          parseIs <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb27-73" data-line-number="73">            (e,loc) <span class="ot">&lt;-</span> try <span class="fu">$</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb27-74" data-line-number="74">              e&#39; <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb27-75" data-line-number="75">              loc&#39; <span class="ot">&lt;-</span> getLoc</a>
+<a class="sourceLine" id="cb27-76" data-line-number="76">              string <span class="st">&quot;&#39;is&quot;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb27-77" data-line-number="77">              return (e&#39;,loc&#39;)</a>
+<a class="sourceLine" id="cb27-78" data-line-number="78">            char <span class="ch">&#39;&quot;&#39;</span></a>
+<a class="sourceLine" id="cb27-79" data-line-number="79">            m <span class="ot">&lt;-</span> many1 <span class="fu">$</span> oneOf _is_chars</a>
+<a class="sourceLine" id="cb27-80" data-line-number="80">            char <span class="ch">&#39;&quot;&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb27-81" data-line-number="81">            return (<span class="dt">JIs</span> loc e m)</a></code></pre></div>
+<p>Test cases:</p>
+<div class="sourceCode" id="cb28"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb28-1" data-line-number="1"><span class="ot">test_cases_parse_jud ::</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb28-2" data-line-number="2">test_cases_parse_jud <span class="fu">=</span> and</a>
+<a class="sourceLine" id="cb28-3" data-line-number="3">  [ testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Jud</span>)</a>
+<a class="sourceLine" id="cb28-4" data-line-number="4">      <span class="st">&quot;P&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;P&quot;</span>))</a>
+<a class="sourceLine" id="cb28-5" data-line-number="5">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Jud</span>)</a>
+<a class="sourceLine" id="cb28-6" data-line-number="6">      <span class="st">&quot;P /\\ Q&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">JConj</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;P&quot;</span>)) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;Q&quot;</span>)))</a>
+<a class="sourceLine" id="cb28-7" data-line-number="7">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Jud</span>)</a>
+<a class="sourceLine" id="cb28-8" data-line-number="8">      <span class="st">&quot;P \\/ Q&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">JDisj</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;P&quot;</span>)) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;Q&quot;</span>)))</a>
+<a class="sourceLine" id="cb28-9" data-line-number="9">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Jud</span>)</a>
+<a class="sourceLine" id="cb28-10" data-line-number="10">      <span class="st">&quot;P =&gt; Q&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">JImpl</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;P&quot;</span>)) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;Q&quot;</span>)))</a>
+<a class="sourceLine" id="cb28-11" data-line-number="11">  , testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Jud</span>)</a>
+<a class="sourceLine" id="cb28-12" data-line-number="12">      <span class="st">&quot;x == y&quot;</span> (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">JEq</span> <span class="dt">Q</span> (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)))</a>
+<a class="sourceLine" id="cb28-13" data-line-number="13">  ]</a></code></pre></div>
+<h2 id="names">Names</h2>
+<div class="sourceCode" id="cb29"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb29-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">PrettyBasic</span> <span class="dt">HypName</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb29-2" data-line-number="2">  prettyBasic (<span class="dt">HypName</span> m) <span class="fu">=</span> m</a>
+<a class="sourceLine" id="cb29-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb29-4" data-line-number="4">  parseBasic <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb29-5" data-line-number="5">    n <span class="ot">&lt;-</span>  many1 <span class="fu">$</span> oneOf _hypname_chars</a>
+<a class="sourceLine" id="cb29-6" data-line-number="6">    spaceChars</a>
+<a class="sourceLine" id="cb29-7" data-line-number="7">    return <span class="fu">$</span> <span class="dt">HypName</span> n</a>
+<a class="sourceLine" id="cb29-8" data-line-number="8"></a>
+<a class="sourceLine" id="cb29-9" data-line-number="9"><span class="kw">instance</span> <span class="dt">PrettyBasic</span> <span class="dt">RuleName</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb29-10" data-line-number="10">  prettyBasic (<span class="dt">RuleName</span> m) <span class="fu">=</span> m</a>
+<a class="sourceLine" id="cb29-11" data-line-number="11"></a>
+<a class="sourceLine" id="cb29-12" data-line-number="12">  parseBasic <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb29-13" data-line-number="13">    n <span class="ot">&lt;-</span> many1 <span class="fu">$</span> oneOf _rulename_chars</a>
+<a class="sourceLine" id="cb29-14" data-line-number="14">    spaceChars</a>
+<a class="sourceLine" id="cb29-15" data-line-number="15">    return <span class="fu">$</span> <span class="dt">RuleName</span> n</a></code></pre></div>
+<h2 id="rules">Rules</h2>
+<p>We’ll accept rules in either basic or fancy style. In basic style, the hypotheses and conclusion are written as an upside-down and indented tree:</p>
+<pre><code>* conclusion
+  * hypothesis 1
+  * hypothesis 2</code></pre>
+<p>In fancy style, the hypotheses come first, and we write out an explicit “if-then”:</p>
+<pre><code>if
+  * hypothesis 1
+  * hypothesis 2
+then
+  * conclusion</code></pre>
+<p>Fancy style is a little more verbose, but easier to read (I think). In both cases indentation is hardcoded at two spaces because that’s what I prefer.</p>
+<p>First basic style.</p>
+<div class="sourceCode" id="cb32"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb32-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">PrettyBasic</span> <span class="dt">Rule</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb32-2" data-line-number="2">  prettyBasic (<span class="dt">Rule</span> q ps) <span class="fu">=</span> concat</a>
+<a class="sourceLine" id="cb32-3" data-line-number="3">    [ <span class="st">&quot;* &quot;</span>, prettyBasic q, <span class="st">&quot;\n&quot;</span> ]</a>
+<a class="sourceLine" id="cb32-4" data-line-number="4">      <span class="fu">++</span> (concatMap (\p <span class="ot">-&gt;</span> concat [<span class="st">&quot;  * &quot;</span>, prettyBasic p, <span class="st">&quot;\n&quot;</span>]) ps)</a>
+<a class="sourceLine" id="cb32-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb32-6" data-line-number="6">  parseBasic <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb32-7" data-line-number="7">    try (char <span class="ch">&#39;*&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars)</a>
+<a class="sourceLine" id="cb32-8" data-line-number="8">    q <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb32-9" data-line-number="9">    newline</a>
+<a class="sourceLine" id="cb32-10" data-line-number="10">    ps <span class="ot">&lt;-</span> many <span class="fu">$</span> try <span class="fu">$</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb32-11" data-line-number="11">      string <span class="st">&quot;  *&quot;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb32-12" data-line-number="12">      p <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb32-13" data-line-number="13">      newline</a>
+<a class="sourceLine" id="cb32-14" data-line-number="14">      return p</a>
+<a class="sourceLine" id="cb32-15" data-line-number="15">    return (<span class="dt">Rule</span> q ps)</a></code></pre></div>
+<p>Test case:</p>
+<div class="sourceCode" id="cb33"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb33-1" data-line-number="1"><span class="ot">test_cases_parse_rule_basic ::</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb33-2" data-line-number="2">test_cases_parse_rule_basic <span class="fu">=</span> and</a>
+<a class="sourceLine" id="cb33-3" data-line-number="3">  [ testBasicParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Rule</span>)</a>
+<a class="sourceLine" id="cb33-4" data-line-number="4">      (unlines</a>
+<a class="sourceLine" id="cb33-5" data-line-number="5">        [ <span class="st">&quot;* P&quot;</span></a>
+<a class="sourceLine" id="cb33-6" data-line-number="6">        , <span class="st">&quot;  * Q&quot;</span></a>
+<a class="sourceLine" id="cb33-7" data-line-number="7">        ])</a>
+<a class="sourceLine" id="cb33-8" data-line-number="8">      (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Rule</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;P&quot;</span>)) [<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;Q&quot;</span>)])</a>
+<a class="sourceLine" id="cb33-9" data-line-number="9">  ]</a></code></pre></div>
+<p>And fancy style:</p>
+<div class="sourceCode" id="cb34"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb34-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">PrettyFancy</span> <span class="dt">Rule</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb34-2" data-line-number="2">  prettyFancy (<span class="dt">Rule</span> q ps) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb34-3" data-line-number="3">    <span class="st">&quot;if\n&quot;</span></a>
+<a class="sourceLine" id="cb34-4" data-line-number="4">      <span class="fu">++</span> (concatMap (\p <span class="ot">-&gt;</span> concat [<span class="st">&quot;  * &quot;</span>, prettyBasic p, <span class="st">&quot;\n&quot;</span>]) ps)</a>
+<a class="sourceLine" id="cb34-5" data-line-number="5">      <span class="fu">++</span> (concat [ <span class="st">&quot;then\n  * &quot;</span>, prettyBasic q, <span class="st">&quot;\n&quot;</span> ])</a>
+<a class="sourceLine" id="cb34-6" data-line-number="6"></a>
+<a class="sourceLine" id="cb34-7" data-line-number="7">  parseFancy <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb34-8" data-line-number="8">    try (string <span class="st">&quot;if&quot;</span> <span class="fu">&gt;&gt;</span> newline)</a>
+<a class="sourceLine" id="cb34-9" data-line-number="9">    ps <span class="ot">&lt;-</span> many <span class="fu">$</span> try <span class="fu">$</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb34-10" data-line-number="10">      string <span class="st">&quot;  *&quot;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb34-11" data-line-number="11">      p <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb34-12" data-line-number="12">      newline</a>
+<a class="sourceLine" id="cb34-13" data-line-number="13">      return p</a>
+<a class="sourceLine" id="cb34-14" data-line-number="14">    string <span class="st">&quot;then&quot;</span> <span class="fu">&gt;&gt;</span> newline</a>
+<a class="sourceLine" id="cb34-15" data-line-number="15">    string <span class="st">&quot;  *&quot;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb34-16" data-line-number="16">    p <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb34-17" data-line-number="17">    newline</a>
+<a class="sourceLine" id="cb34-18" data-line-number="18">    return (<span class="dt">Rule</span> p ps)</a></code></pre></div>
+<p>Test case:</p>
+<div class="sourceCode" id="cb35"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb35-1" data-line-number="1"><span class="ot">test_cases_parse_rule_fancy ::</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb35-2" data-line-number="2">test_cases_parse_rule_fancy <span class="fu">=</span> and</a>
+<a class="sourceLine" id="cb35-3" data-line-number="3">  [ testFancyParser (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Rule</span>)</a>
+<a class="sourceLine" id="cb35-4" data-line-number="4">      (unlines</a>
+<a class="sourceLine" id="cb35-5" data-line-number="5">        [ <span class="st">&quot;if&quot;</span></a>
+<a class="sourceLine" id="cb35-6" data-line-number="6">        , <span class="st">&quot;  * Q&quot;</span></a>
+<a class="sourceLine" id="cb35-7" data-line-number="7">        , <span class="st">&quot;then&quot;</span></a>
+<a class="sourceLine" id="cb35-8" data-line-number="8">        , <span class="st">&quot;  * P&quot;</span></a>
+<a class="sourceLine" id="cb35-9" data-line-number="9">        ])</a>
+<a class="sourceLine" id="cb35-10" data-line-number="10">      (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Rule</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;P&quot;</span>)) [<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;Q&quot;</span>)])</a>
+<a class="sourceLine" id="cb35-11" data-line-number="11">  ]</a></code></pre></div>
+<h2 id="proof">Proof</h2>
+<p>Proofs can also be written in either basic or fancy style.</p>
+<div class="sourceCode" id="cb36"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb36-1" data-line-number="1"><span class="ot">proofKeyword ::</span> <span class="dt">Parser</span> <span class="dt">String</span></a>
+<a class="sourceLine" id="cb36-2" data-line-number="2">proofKeyword <span class="fu">=</span></a>
+<a class="sourceLine" id="cb36-3" data-line-number="3">  try (string <span class="st">&quot;assumption&quot;</span>) <span class="fu">&lt;|&gt;</span></a>
+<a class="sourceLine" id="cb36-4" data-line-number="4">  try (string <span class="st">&quot;hypothesis&quot;</span>) <span class="fu">&lt;|&gt;</span></a>
+<a class="sourceLine" id="cb36-5" data-line-number="5">  try (string <span class="st">&quot;discharge&quot;</span>) <span class="fu">&lt;|&gt;</span></a>
+<a class="sourceLine" id="cb36-6" data-line-number="6">  try (string <span class="st">&quot;eq-elim&quot;</span>) <span class="fu">&lt;|&gt;</span></a>
+<a class="sourceLine" id="cb36-7" data-line-number="7">  try (string <span class="st">&quot;sub&quot;</span>) <span class="fu">&lt;|&gt;</span></a>
+<a class="sourceLine" id="cb36-8" data-line-number="8">  try (string <span class="st">&quot;forall-intro&quot;</span>) <span class="fu">&lt;|&gt;</span></a>
+<a class="sourceLine" id="cb36-9" data-line-number="9">  try (string <span class="st">&quot;forall-elim&quot;</span>) <span class="fu">&lt;|&gt;</span></a>
+<a class="sourceLine" id="cb36-10" data-line-number="10">  (string <span class="st">&quot;use&quot;</span>)</a></code></pre></div>
+<p>Basic style:</p>
+<div class="sourceCode" id="cb37"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb37-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">PrettyBasic</span> <span class="dt">Proof</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb37-2" data-line-number="2">  prettyBasic <span class="fu">=</span> pretty <span class="dv">0</span></a>
+<a class="sourceLine" id="cb37-3" data-line-number="3">    <span class="kw">where</span></a>
+<a class="sourceLine" id="cb37-4" data-line-number="4">      ind i <span class="fu">=</span> replicate (<span class="dv">2</span><span class="fu">*</span>i) <span class="ch">&#39; &#39;</span></a>
+<a class="sourceLine" id="cb37-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb37-6" data-line-number="6">      pretty i <span class="fu">=</span> \<span class="kw">case</span></a>
+<a class="sourceLine" id="cb37-7" data-line-number="7">        <span class="dt">Assume</span> _ k p <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb37-8" data-line-number="8">          [ ind i, <span class="st">&quot;* &quot;</span>, prettyBasic p, <span class="st">&quot; : assumption &quot;</span></a>
+<a class="sourceLine" id="cb37-9" data-line-number="9">          , show k, <span class="st">&quot;\n&quot;</span> ]</a>
+<a class="sourceLine" id="cb37-10" data-line-number="10">        <span class="dt">Hyp</span> _ name p <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb37-11" data-line-number="11">          [ ind i, <span class="st">&quot;* &quot;</span>, prettyBasic p, <span class="st">&quot; : hypothesis &quot;</span></a>
+<a class="sourceLine" id="cb37-12" data-line-number="12">          , prettyBasic name, <span class="st">&quot;\n&quot;</span> ]</a>
+<a class="sourceLine" id="cb37-13" data-line-number="13">        <span class="dt">Dis</span> _ name w pf <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb37-14" data-line-number="14">          [ ind i, <span class="st">&quot;* &quot;</span>, prettyBasic w, <span class="st">&quot; : discharge &quot;</span></a>
+<a class="sourceLine" id="cb37-15" data-line-number="15">          , prettyBasic name, <span class="st">&quot;\n&quot;</span> ]</a>
+<a class="sourceLine" id="cb37-16" data-line-number="16">            <span class="fu">++</span> pretty (i<span class="fu">+</span><span class="dv">1</span>) pf</a>
+<a class="sourceLine" id="cb37-17" data-line-number="17">        <span class="dt">ElimEq</span> _ w x q pe pf <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb37-18" data-line-number="18">          [ ind i, <span class="st">&quot;* &quot;</span>, prettyBasic w, <span class="st">&quot; : eq-elim &quot;</span></a>
+<a class="sourceLine" id="cb37-19" data-line-number="19">          , prettyBasic x, <span class="st">&quot; &quot;</span>, prettyBasic q, <span class="st">&quot;\n&quot;</span> ]</a>
+<a class="sourceLine" id="cb37-20" data-line-number="20">            <span class="fu">++</span> pretty (i<span class="fu">+</span><span class="dv">1</span>) pe <span class="fu">++</span> pretty (i<span class="fu">+</span><span class="dv">1</span>) pf</a>
+<a class="sourceLine" id="cb37-21" data-line-number="21">        <span class="dt">Subst</span> _ w s pf <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb37-22" data-line-number="22">          [ ind i, <span class="st">&quot;* &quot;</span>, prettyBasic w, <span class="st">&quot; : sub &quot;</span></a>
+<a class="sourceLine" id="cb37-23" data-line-number="23">          , prettyBasic s, <span class="st">&quot;\n&quot;</span> ]</a>
+<a class="sourceLine" id="cb37-24" data-line-number="24">            <span class="fu">++</span> pretty (i<span class="fu">+</span><span class="dv">1</span>) pf</a>
+<a class="sourceLine" id="cb37-25" data-line-number="25">        <span class="dt">IntroU</span> _ w x y pf <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb37-26" data-line-number="26">          [ ind i, <span class="st">&quot;* &quot;</span>, prettyBasic w, <span class="st">&quot; : forall-intro &quot;</span></a>
+<a class="sourceLine" id="cb37-27" data-line-number="27">          , prettyBasic x, <span class="st">&quot; -&gt; &quot;</span>, prettyBasic y, <span class="st">&quot;\n&quot;</span> ]</a>
+<a class="sourceLine" id="cb37-28" data-line-number="28">            <span class="fu">++</span> pretty (i<span class="fu">+</span><span class="dv">1</span>) pf</a>
+<a class="sourceLine" id="cb37-29" data-line-number="29">        <span class="dt">ElimU</span> _ w x e pf <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb37-30" data-line-number="30">          [ ind i, <span class="st">&quot;* &quot;</span>, prettyBasic w, <span class="st">&quot; : forall-elim &quot;</span></a>
+<a class="sourceLine" id="cb37-31" data-line-number="31">          , prettyBasic x, <span class="st">&quot; -&gt; &quot;</span>, prettyBasic e, <span class="st">&quot;\n&quot;</span> ]</a>
+<a class="sourceLine" id="cb37-32" data-line-number="32">            <span class="fu">++</span> pretty (i<span class="fu">+</span><span class="dv">1</span>) pf</a>
+<a class="sourceLine" id="cb37-33" data-line-number="33">        <span class="dt">Use</span> _ name q pfs <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb37-34" data-line-number="34">          [ ind i, <span class="st">&quot;* &quot;</span>, prettyBasic q, <span class="st">&quot; : use &quot;</span></a>
+<a class="sourceLine" id="cb37-35" data-line-number="35">          , prettyBasic name, <span class="st">&quot;\n&quot;</span> ]</a>
+<a class="sourceLine" id="cb37-36" data-line-number="36">            <span class="fu">++</span> (concatMap (pretty (i<span class="fu">+</span><span class="dv">1</span>)) pfs)</a>
+<a class="sourceLine" id="cb37-37" data-line-number="37"></a>
+<a class="sourceLine" id="cb37-38" data-line-number="38">  parseBasic <span class="fu">=</span> p <span class="dv">0</span></a>
+<a class="sourceLine" id="cb37-39" data-line-number="39">    <span class="kw">where</span></a>
+<a class="sourceLine" id="cb37-40" data-line-number="40">      p i <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb37-41" data-line-number="41">        count (<span class="dv">2</span><span class="fu">*</span>i) (char <span class="ch">&#39; &#39;</span>)</a>
+<a class="sourceLine" id="cb37-42" data-line-number="42">        char <span class="ch">&#39;*&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb37-43" data-line-number="43">        q <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb37-44" data-line-number="44">        char <span class="ch">&#39;:&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb37-45" data-line-number="45">        loc <span class="ot">&lt;-</span> getLoc</a>
+<a class="sourceLine" id="cb37-46" data-line-number="46">        just <span class="ot">&lt;-</span> proofKeyword</a>
+<a class="sourceLine" id="cb37-47" data-line-number="47">        spaceChars</a>
+<a class="sourceLine" id="cb37-48" data-line-number="48">        <span class="kw">case</span> just <span class="kw">of</span></a>
+<a class="sourceLine" id="cb37-49" data-line-number="49">          <span class="st">&quot;assumption&quot;</span> <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb37-50" data-line-number="50">            k <span class="ot">&lt;-</span> read <span class="fu">&lt;$&gt;</span> many1 digit</a>
+<a class="sourceLine" id="cb37-51" data-line-number="51">            newline</a>
+<a class="sourceLine" id="cb37-52" data-line-number="52">            return (<span class="dt">Assume</span> loc k q)</a>
+<a class="sourceLine" id="cb37-53" data-line-number="53"></a>
+<a class="sourceLine" id="cb37-54" data-line-number="54">          <span class="st">&quot;hypothesis&quot;</span> <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb37-55" data-line-number="55">            n <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb37-56" data-line-number="56">            newline</a>
+<a class="sourceLine" id="cb37-57" data-line-number="57">            return (<span class="dt">Hyp</span> loc n q)</a>
+<a class="sourceLine" id="cb37-58" data-line-number="58"></a>
+<a class="sourceLine" id="cb37-59" data-line-number="59">          <span class="st">&quot;discharge&quot;</span> <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb37-60" data-line-number="60">            n <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb37-61" data-line-number="61">            newline</a>
+<a class="sourceLine" id="cb37-62" data-line-number="62">            pf <span class="ot">&lt;-</span> p (i<span class="fu">+</span><span class="dv">1</span>)</a>
+<a class="sourceLine" id="cb37-63" data-line-number="63">            return (<span class="dt">Dis</span> loc n q pf)</a>
+<a class="sourceLine" id="cb37-64" data-line-number="64"></a>
+<a class="sourceLine" id="cb37-65" data-line-number="65">          <span class="st">&quot;eq-elim&quot;</span> <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb37-66" data-line-number="66">            x <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb37-67" data-line-number="67">            spaceChars</a>
+<a class="sourceLine" id="cb37-68" data-line-number="68">            w <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb37-69" data-line-number="69">            newline</a>
+<a class="sourceLine" id="cb37-70" data-line-number="70">            pe <span class="ot">&lt;-</span> p (i<span class="fu">+</span><span class="dv">1</span>)</a>
+<a class="sourceLine" id="cb37-71" data-line-number="71">            pf <span class="ot">&lt;-</span> p (i<span class="fu">+</span><span class="dv">1</span>)</a>
+<a class="sourceLine" id="cb37-72" data-line-number="72">            return (<span class="dt">ElimEq</span> loc q x w pe pf)</a>
+<a class="sourceLine" id="cb37-73" data-line-number="73"></a>
+<a class="sourceLine" id="cb37-74" data-line-number="74">          <span class="st">&quot;sub&quot;</span> <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb37-75" data-line-number="75">            s <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb37-76" data-line-number="76">            newline</a>
+<a class="sourceLine" id="cb37-77" data-line-number="77">            pf <span class="ot">&lt;-</span> p (i<span class="fu">+</span><span class="dv">1</span>)</a>
+<a class="sourceLine" id="cb37-78" data-line-number="78">            return (<span class="dt">Subst</span> loc q s pf)</a>
+<a class="sourceLine" id="cb37-79" data-line-number="79"></a>
+<a class="sourceLine" id="cb37-80" data-line-number="80">          <span class="st">&quot;forall-intro&quot;</span> <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb37-81" data-line-number="81">            x <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb37-82" data-line-number="82">            string <span class="st">&quot;-&gt;&quot;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb37-83" data-line-number="83">            y <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb37-84" data-line-number="84">            newline</a>
+<a class="sourceLine" id="cb37-85" data-line-number="85">            pf <span class="ot">&lt;-</span> p (i<span class="fu">+</span><span class="dv">1</span>)</a>
+<a class="sourceLine" id="cb37-86" data-line-number="86">            return (<span class="dt">IntroU</span> loc q x y pf)</a>
+<a class="sourceLine" id="cb37-87" data-line-number="87"></a>
+<a class="sourceLine" id="cb37-88" data-line-number="88">          <span class="st">&quot;forall-elim&quot;</span> <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb37-89" data-line-number="89">            x <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb37-90" data-line-number="90">            string <span class="st">&quot;-&gt;&quot;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb37-91" data-line-number="91">            e <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb37-92" data-line-number="92">            newline</a>
+<a class="sourceLine" id="cb37-93" data-line-number="93">            pf <span class="ot">&lt;-</span> p (i<span class="fu">+</span><span class="dv">1</span>)</a>
+<a class="sourceLine" id="cb37-94" data-line-number="94">            return (<span class="dt">ElimU</span> loc q x e pf)</a>
+<a class="sourceLine" id="cb37-95" data-line-number="95"></a>
+<a class="sourceLine" id="cb37-96" data-line-number="96">          <span class="st">&quot;use&quot;</span> <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb37-97" data-line-number="97">            n <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb37-98" data-line-number="98">            newline</a>
+<a class="sourceLine" id="cb37-99" data-line-number="99">            pfs <span class="ot">&lt;-</span> many <span class="fu">$</span> try <span class="fu">$</span> p (i<span class="fu">+</span><span class="dv">1</span>)</a>
+<a class="sourceLine" id="cb37-100" data-line-number="100">            return (<span class="dt">Use</span> loc n q pfs)</a>
+<a class="sourceLine" id="cb37-101" data-line-number="101"></a>
+<a class="sourceLine" id="cb37-102" data-line-number="102">          x <span class="ot">-&gt;</span> unexpected x</a></code></pre></div>
+<p>Parsing fancy proof lines:</p>
+<div class="sourceCode" id="cb38"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb38-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">PrettyBasic</span> <span class="dt">FancyProofLine</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb38-2" data-line-number="2">  prettyBasic <span class="fu">=</span> \<span class="kw">case</span></a>
+<a class="sourceLine" id="cb38-3" data-line-number="3">    <span class="dt">FancyHyp</span> _ name q <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb38-4" data-line-number="4">      [ prettyBasic q, <span class="st">&quot; : hypothesis &quot;</span></a>
+<a class="sourceLine" id="cb38-5" data-line-number="5">      , prettyBasic name, <span class="st">&quot;\n&quot;</span> ]</a>
+<a class="sourceLine" id="cb38-6" data-line-number="6">    <span class="dt">FancyDis</span> _ name q u <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb38-7" data-line-number="7">      [ prettyBasic q, <span class="st">&quot; : discharge &quot;</span></a>
+<a class="sourceLine" id="cb38-8" data-line-number="8">      , prettyBasic name, <span class="st">&quot;; &quot;</span>, show u, <span class="st">&quot;\n&quot;</span> ]</a>
+<a class="sourceLine" id="cb38-9" data-line-number="9">    <span class="dt">FancyAssume</span> _ i q <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb38-10" data-line-number="10">      [ prettyBasic q, <span class="st">&quot; : assumption &quot;</span></a>
+<a class="sourceLine" id="cb38-11" data-line-number="11">      , show i, <span class="st">&quot;\n&quot;</span> ]</a>
+<a class="sourceLine" id="cb38-12" data-line-number="12">    <span class="dt">FancyElimEq</span> _ w x q u v <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb38-13" data-line-number="13">      [ prettyBasic w, <span class="st">&quot; : eq-elim &quot;</span></a>
+<a class="sourceLine" id="cb38-14" data-line-number="14">      , prettyBasic x, <span class="st">&quot; &quot;</span>, prettyBasic q, <span class="st">&quot;; &quot;</span></a>
+<a class="sourceLine" id="cb38-15" data-line-number="15">      , show u, <span class="st">&quot;, &quot;</span>, show v, <span class="st">&quot;\n&quot;</span> ]</a>
+<a class="sourceLine" id="cb38-16" data-line-number="16">    <span class="dt">FancySubst</span> _ w s u <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb38-17" data-line-number="17">      [ prettyBasic w, <span class="st">&quot; : sub &quot;</span></a>
+<a class="sourceLine" id="cb38-18" data-line-number="18">      , prettyBasic s, <span class="st">&quot;; &quot;</span></a>
+<a class="sourceLine" id="cb38-19" data-line-number="19">      , show u, <span class="st">&quot;\n&quot;</span> ]</a>
+<a class="sourceLine" id="cb38-20" data-line-number="20">    <span class="dt">FancyIntroU</span> _ w x y u <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb38-21" data-line-number="21">      [ prettyBasic w, <span class="st">&quot; : forall-intro &quot;</span></a>
+<a class="sourceLine" id="cb38-22" data-line-number="22">      , prettyBasic x, <span class="st">&quot; -&gt; &quot;</span>, prettyBasic y, <span class="st">&quot;; &quot;</span></a>
+<a class="sourceLine" id="cb38-23" data-line-number="23">      , show u, <span class="st">&quot;\n&quot;</span> ]</a>
+<a class="sourceLine" id="cb38-24" data-line-number="24">    <span class="dt">FancyElimU</span> _ w x e u <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb38-25" data-line-number="25">      [ prettyBasic w, <span class="st">&quot; : forall-elim &quot;</span></a>
+<a class="sourceLine" id="cb38-26" data-line-number="26">      , prettyBasic x, <span class="st">&quot; -&gt; &quot;</span>, prettyBasic e, <span class="st">&quot;; &quot;</span></a>
+<a class="sourceLine" id="cb38-27" data-line-number="27">      , show u, <span class="st">&quot;\n&quot;</span> ]</a>
+<a class="sourceLine" id="cb38-28" data-line-number="28">    <span class="dt">FancyUse</span> _ name w us <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb38-29" data-line-number="29">      [ prettyBasic w, <span class="st">&quot; : use &quot;</span></a>
+<a class="sourceLine" id="cb38-30" data-line-number="30">      , prettyBasic name, <span class="st">&quot;; &quot;</span></a>
+<a class="sourceLine" id="cb38-31" data-line-number="31">      , intercalate <span class="st">&quot;, &quot;</span> <span class="fu">$</span> map show us, <span class="st">&quot;\n&quot;</span> ]</a>
+<a class="sourceLine" id="cb38-32" data-line-number="32"></a>
+<a class="sourceLine" id="cb38-33" data-line-number="33">  parseBasic <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb38-34" data-line-number="34">    w <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb38-35" data-line-number="35">    char <span class="ch">&#39;:&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb38-36" data-line-number="36">    loc <span class="ot">&lt;-</span> getLoc</a>
+<a class="sourceLine" id="cb38-37" data-line-number="37">    just <span class="ot">&lt;-</span> proofKeyword</a>
+<a class="sourceLine" id="cb38-38" data-line-number="38">    spaceChars</a>
+<a class="sourceLine" id="cb38-39" data-line-number="39">    <span class="kw">case</span> just <span class="kw">of</span></a>
+<a class="sourceLine" id="cb38-40" data-line-number="40">      <span class="st">&quot;assumption&quot;</span> <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb38-41" data-line-number="41">        i <span class="ot">&lt;-</span> read <span class="fu">&lt;$&gt;</span> many1 digit</a>
+<a class="sourceLine" id="cb38-42" data-line-number="42">        newline</a>
+<a class="sourceLine" id="cb38-43" data-line-number="43">        return <span class="fu">$</span> <span class="dt">FancyAssume</span> loc i w</a>
+<a class="sourceLine" id="cb38-44" data-line-number="44"></a>
+<a class="sourceLine" id="cb38-45" data-line-number="45">      <span class="st">&quot;hypothesis&quot;</span> <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb38-46" data-line-number="46">        n <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb38-47" data-line-number="47">        newline</a>
+<a class="sourceLine" id="cb38-48" data-line-number="48">        return <span class="fu">$</span> <span class="dt">FancyHyp</span> loc n w</a>
+<a class="sourceLine" id="cb38-49" data-line-number="49"></a>
+<a class="sourceLine" id="cb38-50" data-line-number="50">      <span class="st">&quot;discharge&quot;</span> <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb38-51" data-line-number="51">        n <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb38-52" data-line-number="52">        char <span class="ch">&#39;;&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb38-53" data-line-number="53">        u <span class="ot">&lt;-</span> read <span class="fu">&lt;$&gt;</span> many1 digit</a>
+<a class="sourceLine" id="cb38-54" data-line-number="54">        newline</a>
+<a class="sourceLine" id="cb38-55" data-line-number="55">        return <span class="fu">$</span> <span class="dt">FancyDis</span> loc n w u</a>
+<a class="sourceLine" id="cb38-56" data-line-number="56"></a>
+<a class="sourceLine" id="cb38-57" data-line-number="57">      <span class="st">&quot;eq-elim&quot;</span> <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb38-58" data-line-number="58">        x <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb38-59" data-line-number="59">        spaceChars</a>
+<a class="sourceLine" id="cb38-60" data-line-number="60">        e <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb38-61" data-line-number="61">        char <span class="ch">&#39;;&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb38-62" data-line-number="62">        u <span class="ot">&lt;-</span> read <span class="fu">&lt;$&gt;</span> many1 digit</a>
+<a class="sourceLine" id="cb38-63" data-line-number="63">        spaceChars <span class="fu">&gt;&gt;</span> char <span class="ch">&#39;,&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb38-64" data-line-number="64">        v <span class="ot">&lt;-</span> read <span class="fu">&lt;$&gt;</span> many1 digit</a>
+<a class="sourceLine" id="cb38-65" data-line-number="65">        newline</a>
+<a class="sourceLine" id="cb38-66" data-line-number="66">        return <span class="fu">$</span> <span class="dt">FancyElimEq</span> loc w x e u v</a>
+<a class="sourceLine" id="cb38-67" data-line-number="67"></a>
+<a class="sourceLine" id="cb38-68" data-line-number="68">      <span class="st">&quot;sub&quot;</span> <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb38-69" data-line-number="69">        s <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb38-70" data-line-number="70">        char <span class="ch">&#39;;&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb38-71" data-line-number="71">        u <span class="ot">&lt;-</span> read <span class="fu">&lt;$&gt;</span> many1 digit</a>
+<a class="sourceLine" id="cb38-72" data-line-number="72">        newline</a>
+<a class="sourceLine" id="cb38-73" data-line-number="73">        return <span class="fu">$</span> <span class="dt">FancySubst</span> loc w s u</a>
+<a class="sourceLine" id="cb38-74" data-line-number="74"></a>
+<a class="sourceLine" id="cb38-75" data-line-number="75">      <span class="st">&quot;forall-intro&quot;</span> <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb38-76" data-line-number="76">        x <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb38-77" data-line-number="77">        string <span class="st">&quot;-&gt;&quot;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb38-78" data-line-number="78">        y <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb38-79" data-line-number="79">        char <span class="ch">&#39;;&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb38-80" data-line-number="80">        u <span class="ot">&lt;-</span> read <span class="fu">&lt;$&gt;</span> many1 digit</a>
+<a class="sourceLine" id="cb38-81" data-line-number="81">        newline</a>
+<a class="sourceLine" id="cb38-82" data-line-number="82">        return <span class="fu">$</span> <span class="dt">FancyIntroU</span> loc w x y u</a>
+<a class="sourceLine" id="cb38-83" data-line-number="83"></a>
+<a class="sourceLine" id="cb38-84" data-line-number="84">      <span class="st">&quot;forall-elim&quot;</span> <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb38-85" data-line-number="85">        x <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb38-86" data-line-number="86">        string <span class="st">&quot;-&gt;&quot;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb38-87" data-line-number="87">        e <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb38-88" data-line-number="88">        char <span class="ch">&#39;;&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb38-89" data-line-number="89">        u <span class="ot">&lt;-</span> read <span class="fu">&lt;$&gt;</span> many1 digit</a>
+<a class="sourceLine" id="cb38-90" data-line-number="90">        newline</a>
+<a class="sourceLine" id="cb38-91" data-line-number="91">        return <span class="fu">$</span> <span class="dt">FancyElimU</span> loc w x e u</a>
+<a class="sourceLine" id="cb38-92" data-line-number="92"></a>
+<a class="sourceLine" id="cb38-93" data-line-number="93">      <span class="st">&quot;use&quot;</span> <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb38-94" data-line-number="94">        n <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb38-95" data-line-number="95">        char <span class="ch">&#39;;&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb38-96" data-line-number="96">        us <span class="ot">&lt;-</span> (map read) <span class="fu">&lt;$&gt;</span> (sepBy (many1 digit) (char <span class="ch">&#39;,&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars))</a>
+<a class="sourceLine" id="cb38-97" data-line-number="97">        newline</a>
+<a class="sourceLine" id="cb38-98" data-line-number="98">        return <span class="fu">$</span> <span class="dt">FancyUse</span> loc n w us</a>
+<a class="sourceLine" id="cb38-99" data-line-number="99"></a>
+<a class="sourceLine" id="cb38-100" data-line-number="100">      x <span class="ot">-&gt;</span> unexpected x</a></code></pre></div>
+<p>Parsing fancy proofs:</p>
+<div class="sourceCode" id="cb39"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb39-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">PrettyBasic</span> <span class="dt">FancyProof</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb39-2" data-line-number="2">  prettyBasic (<span class="dt">FancyProof</span> m) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb39-3" data-line-number="3">    concatMap p <span class="fu">$</span> M.assocs m</a>
+<a class="sourceLine" id="cb39-4" data-line-number="4">    <span class="kw">where</span></a>
+<a class="sourceLine" id="cb39-5" data-line-number="5">      p (k,l) <span class="fu">=</span> concat</a>
+<a class="sourceLine" id="cb39-6" data-line-number="6">        [ show k, <span class="st">&quot;. &quot;</span>, prettyBasic l ]</a>
+<a class="sourceLine" id="cb39-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb39-8" data-line-number="8">  parseBasic <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb39-9" data-line-number="9">    fancy <span class="ot">&lt;-</span> many1 parseLine</a>
+<a class="sourceLine" id="cb39-10" data-line-number="10">    return <span class="fu">$</span> <span class="dt">FancyProof</span> <span class="fu">$</span> M.fromList fancy</a>
+<a class="sourceLine" id="cb39-11" data-line-number="11">    <span class="kw">where</span></a>
+<a class="sourceLine" id="cb39-12" data-line-number="12">      parseLine <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb39-13" data-line-number="13">        k <span class="ot">&lt;-</span> read <span class="fu">&lt;$&gt;</span> many1 digit</a>
+<a class="sourceLine" id="cb39-14" data-line-number="14">        spaceChars <span class="fu">&gt;&gt;</span> char <span class="ch">&#39;.&#39;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb39-15" data-line-number="15">        l <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb39-16" data-line-number="16">        return (k,l)</a></code></pre></div>
+<p>And finally, parsing proofs in fancy style.</p>
+<div class="sourceCode" id="cb40"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb40-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">PrettyFancy</span> <span class="dt">Proof</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb40-2" data-line-number="2">  prettyFancy p <span class="fu">=</span> prettyBasic (head <span class="fu">$</span> serialize p)</a>
+<a class="sourceLine" id="cb40-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb40-4" data-line-number="4">  parseFancy <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb40-5" data-line-number="5">    fancy <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb40-6" data-line-number="6">    <span class="kw">case</span> deserialize fancy <span class="kw">of</span></a>
+<a class="sourceLine" id="cb40-7" data-line-number="7">      <span class="dt">Left</span> err <span class="ot">-&gt;</span> fail <span class="fu">$</span> show err</a>
+<a class="sourceLine" id="cb40-8" data-line-number="8">      <span class="dt">Right</span> p <span class="ot">-&gt;</span> return p</a></code></pre></div>
+<p>Note that the fancy style proof parser includes an extra validation step that may fail.</p>
+<h2 id="claims">Claims</h2>
+<p>Claims come in three flavors: type declarations, rules, and theorems. The syntax is roughly</p>
+<pre><code>type CONSTANT :: MONOTYPE
+
+rule NAME
+if
+* JUDGEMENT
+* JUDGEMENT
+then
+* JUDGEMENT
+
+theorem NAME
+* JUDGEMENT
+  * JUDGEMENT
+proof
+1. JUDGEMENT;
+2. JUDGEMENT; 1</code></pre>
+<div class="sourceCode" id="cb42"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb42-1" data-line-number="1"><span class="ot">claimKeyword ::</span> <span class="dt">Parser</span> <span class="dt">String</span></a>
+<a class="sourceLine" id="cb42-2" data-line-number="2">claimKeyword <span class="fu">=</span></a>
+<a class="sourceLine" id="cb42-3" data-line-number="3">  try (string <span class="st">&quot;rule&quot;</span>) <span class="fu">&lt;|&gt;</span></a>
+<a class="sourceLine" id="cb42-4" data-line-number="4">  try (string <span class="st">&quot;theorem&quot;</span>) <span class="fu">&lt;|&gt;</span></a>
+<a class="sourceLine" id="cb42-5" data-line-number="5">  string <span class="st">&quot;type&quot;</span></a>
+<a class="sourceLine" id="cb42-6" data-line-number="6"></a>
+<a class="sourceLine" id="cb42-7" data-line-number="7"><span class="kw">instance</span> <span class="dt">PrettyBasic</span> <span class="dt">Claim</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb42-8" data-line-number="8">  prettyBasic <span class="fu">=</span> \<span class="kw">case</span></a>
+<a class="sourceLine" id="cb42-9" data-line-number="9">    <span class="dt">Axiom</span> n ax <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb42-10" data-line-number="10">      [ <span class="st">&quot;rule &quot;</span>, prettyBasic n, <span class="st">&quot;\n&quot;</span></a>
+<a class="sourceLine" id="cb42-11" data-line-number="11">      , prettyBasic ax, <span class="st">&quot;\n&quot;</span></a>
+<a class="sourceLine" id="cb42-12" data-line-number="12">      ]</a>
+<a class="sourceLine" id="cb42-13" data-line-number="13">    <span class="dt">Theorem</span> n t pf <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb42-14" data-line-number="14">      [ <span class="st">&quot;theorem &quot;</span>, prettyBasic n, <span class="st">&quot;\n&quot;</span></a>
+<a class="sourceLine" id="cb42-15" data-line-number="15">      , prettyBasic t, <span class="st">&quot;\n&quot;</span></a>
+<a class="sourceLine" id="cb42-16" data-line-number="16">      , <span class="st">&quot;proof\n&quot;</span>, prettyBasic pf, <span class="st">&quot;\n&quot;</span></a>
+<a class="sourceLine" id="cb42-17" data-line-number="17">      ]</a>
+<a class="sourceLine" id="cb42-18" data-line-number="18">    <span class="dt">TypeDecl</span> c t <span class="ot">-&gt;</span> concat</a>
+<a class="sourceLine" id="cb42-19" data-line-number="19">      [ <span class="st">&quot;type &quot;</span>, prettyBasic c, <span class="st">&quot; :: &quot;</span>, prettyBasic t, <span class="st">&quot;\n&quot;</span> ]</a>
+<a class="sourceLine" id="cb42-20" data-line-number="20"></a>
+<a class="sourceLine" id="cb42-21" data-line-number="21">  parseBasic <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb42-22" data-line-number="22">    m <span class="ot">&lt;-</span> claimKeyword</a>
+<a class="sourceLine" id="cb42-23" data-line-number="23">    spaceChars</a>
+<a class="sourceLine" id="cb42-24" data-line-number="24">    <span class="kw">case</span> m <span class="kw">of</span></a>
+<a class="sourceLine" id="cb42-25" data-line-number="25">      <span class="st">&quot;rule&quot;</span> <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb42-26" data-line-number="26">        n <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb42-27" data-line-number="27">        many1 newline</a>
+<a class="sourceLine" id="cb42-28" data-line-number="28">        ax <span class="ot">&lt;-</span> parseBasic <span class="fu">&lt;|&gt;</span> parseFancy</a>
+<a class="sourceLine" id="cb42-29" data-line-number="29">        many newline</a>
+<a class="sourceLine" id="cb42-30" data-line-number="30">        return (<span class="dt">Axiom</span> n ax)</a>
+<a class="sourceLine" id="cb42-31" data-line-number="31"></a>
+<a class="sourceLine" id="cb42-32" data-line-number="32">      <span class="st">&quot;theorem&quot;</span> <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb42-33" data-line-number="33">        n <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb42-34" data-line-number="34">        many1 newline</a>
+<a class="sourceLine" id="cb42-35" data-line-number="35">        r <span class="ot">&lt;-</span> parseBasic <span class="fu">&lt;|&gt;</span> parseFancy</a>
+<a class="sourceLine" id="cb42-36" data-line-number="36">        many newline</a>
+<a class="sourceLine" id="cb42-37" data-line-number="37">        string <span class="st">&quot;proof&quot;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb42-38" data-line-number="38">        many1 newline</a>
+<a class="sourceLine" id="cb42-39" data-line-number="39">        p <span class="ot">&lt;-</span> parseBasic <span class="fu">&lt;|&gt;</span> parseFancy</a>
+<a class="sourceLine" id="cb42-40" data-line-number="40">        many newline</a>
+<a class="sourceLine" id="cb42-41" data-line-number="41">        return (<span class="dt">Theorem</span> n r p)</a>
+<a class="sourceLine" id="cb42-42" data-line-number="42"></a>
+<a class="sourceLine" id="cb42-43" data-line-number="43">      <span class="st">&quot;type&quot;</span> <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb42-44" data-line-number="44">        c <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb42-45" data-line-number="45">        string <span class="st">&quot;::&quot;</span> <span class="fu">&gt;&gt;</span> spaceChars</a>
+<a class="sourceLine" id="cb42-46" data-line-number="46">        t <span class="ot">&lt;-</span> parseBasic</a>
+<a class="sourceLine" id="cb42-47" data-line-number="47">        many newline</a>
+<a class="sourceLine" id="cb42-48" data-line-number="48">        return (<span class="dt">TypeDecl</span> c t)</a>
+<a class="sourceLine" id="cb42-49" data-line-number="49"></a>
+<a class="sourceLine" id="cb42-50" data-line-number="50">      m <span class="ot">-&gt;</span> unexpected m</a></code></pre></div>
+<h2 id="modules">Modules</h2>
+<p>A module is just a list of claims.</p>
+<div class="sourceCode" id="cb43"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb43-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">PrettyBasic</span> <span class="dt">ModuleName</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb43-2" data-line-number="2">  prettyBasic (<span class="dt">ModuleName</span> n) <span class="fu">=</span> n</a>
+<a class="sourceLine" id="cb43-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb43-4" data-line-number="4">  parseBasic <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb43-5" data-line-number="5">    n <span class="ot">&lt;-</span> many1 <span class="fu">$</span> oneOf _modulename_chars</a>
+<a class="sourceLine" id="cb43-6" data-line-number="6">    spaceChars</a>
+<a class="sourceLine" id="cb43-7" data-line-number="7">    return (<span class="dt">ModuleName</span> n)</a>
+<a class="sourceLine" id="cb43-8" data-line-number="8"></a>
+<a class="sourceLine" id="cb43-9" data-line-number="9"><span class="kw">instance</span> <span class="dt">PrettyBasic</span> <span class="dt">Module</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb43-10" data-line-number="10">  prettyBasic (<span class="dt">Module</span> n m) <span class="fu">=</span> concat</a>
+<a class="sourceLine" id="cb43-11" data-line-number="11">    [ concatMap prettyBasic m ]</a>
+<a class="sourceLine" id="cb43-12" data-line-number="12"></a>
+<a class="sourceLine" id="cb43-13" data-line-number="13">  parseBasic <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb43-14" data-line-number="14">    name <span class="ot">&lt;-</span> sourceName <span class="fu">&lt;$&gt;</span> getPosition</a>
+<a class="sourceLine" id="cb43-15" data-line-number="15">    m <span class="ot">&lt;-</span> many parseBasic</a>
+<a class="sourceLine" id="cb43-16" data-line-number="16">    eof</a>
+<a class="sourceLine" id="cb43-17" data-line-number="17">    return (<span class="dt">Module</span> (<span class="dt">ModuleName</span> name) m)</a></code></pre></div>
+</body>
+</html>
