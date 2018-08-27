@@ -466,7 +466,6 @@ We also have a rogues gallery of things that can go wrong with a proof.
 >   | TypeAlreadyDefined PolyType
 >   | FreeVariableInPremise Loc (Var Expr)
 >   | BindingFreeVar Loc (Var Expr) Jud
->   | TooManyFree Loc (Var Expr) Jud
 >   | EqExpected Loc
 >   | BadEqSubstitutionRHS Loc
 >   | BadEqSubstitutionLHS Loc
@@ -586,12 +585,9 @@ The substitution proof just checks syntactic equality.
 >     case q of
 >       JAll _ z p ->
 >         if x == z
->           then if (S.singleton x) == (freeExprVars p)
->                     || (S.empty == freeExprVars p)
->             then if w == (x --> e) $> q
->               then return $ (x --> e) $> q
->               else checkError $ MalformedElimU loc
->             else checkError $ TooManyFree loc x q
+>           then if w == (x --> e) $> q
+>             then return $ (x --> e) $> q
+>             else checkError $ MalformedElimU loc
 >           else checkError $ AllVarMismatch loc x z
 >       _ -> checkError $ AllExpected loc
 
