@@ -36,6 +36,8 @@ The serialized syntax has some advantages. It doesn't require arbitrary indentat
 
 In this module we'll define an alternative abstract syntax for serialized proofs, which we'll call _fancy style_.
 
+In a concrete sense we can think of fancy style as being _compiled_ to raw proof trees. This is an interesting point of view. In general a compiler translates expressions from one structured language to another, and it's possible to use this translation to compress complex patterns in one language to simple ones in another. In addition to Fitch style notation, we will augment fancy proofs with some additional features.
+
 As usual we start with imports.
 
 > {-# LANGUAGE LambdaCase #-}
@@ -43,6 +45,7 @@ As usual we start with imports.
 > 
 > import Data.List
 > import qualified Data.Map as M
+> import qualified Data.Set as S
 > import Test.QuickCheck
 > 
 > import Var
@@ -60,6 +63,8 @@ Where a proof is a tree of proofs, a fancy proof is a list of proof statements.
 
 Fancy proof statements will look suspiciously like the nodes in a nonfancy proof, except that _subproofs_ will be replaced by _references_. The lines in a fancy proof are usually numbered, so the references can just be `Int`s.
 
+There's one special case. A very common pattern is the _equational proof_; one way to show that two expressions are equal is to give a list of equalities with the two expressions on either end. Doing this "raw", in terms of eq-intro and eq-elim, is verbose and unenlightening. However, we can introduce a special syntactic form to condense these proofs quite a bit. This is the `FancyChain` line; we'll explain it later.
+
 > data FancyProof
 >   = FancyProof (M.Map Int FancyProofLine)
 >   deriving (Eq, Show)
@@ -68,11 +73,19 @@ Fancy proof statements will look suspiciously like the nodes in a nonfancy proof
 >   = FancyUse Loc RuleName Jud [Int]
 >   | FancyHyp Loc HypName Jud
 >   | FancyDis Loc HypName Jud Int
+>   | FancyIntroEq Loc Jud
 >   | FancyElimEq Loc Jud (Var Expr) Jud Int Int
 >   | FancyIntroU Loc Jud (Var Expr) (Var Expr) Int
 >   | FancyElimU Loc Jud (Var Expr) Expr Int
 >   | FancySubst Loc Jud (Sub Expr) Int
 >   | FancyAssume Loc Int Jud
+>   | FancyChain Loc Expr [(Expr, Maybe (Var Expr, Expr), ChainRef)]
+>   deriving (Show)
+> 
+> data ChainRef
+>   = ChainUse Loc RuleName [Int]
+>   | ChainHyp Loc HypName
+>   | ChainAssume Loc Int
 >   deriving (Show)
 
 For testing we'll need an `Eq` instance for `FancyProofLine` that ignores the `Loc` parameters.
@@ -85,6 +98,8 @@ For testing we'll need an `Eq` instance for `FancyProofLine` that ignores the `L
 >       (n1 == n2) && (q1 == q2)
 >     (FancyDis _ n1 q1 p1, FancyDis _ n2 q2 p2) ->
 >       (n1 == n2) && (q1 == q2) && (p1 == p2)
+>     (FancyIntroEq _ e1, FancyIntroEq _ e2) ->
+>       (e1 == e2)
 >     (FancyElimEq _ q1 x1 w1 u1 v1, FancyElimEq _ q2 x2 w2 u2 v2) ->
 >       (q1 == q2) && (x1 == x2) && (w1 == w1) && (u1 == u2) && (v1 == v2)
 >     (FancyIntroU _ q1 x1 y1 p1, FancyIntroU _ q2 x2 y2 p2) ->
@@ -95,6 +110,18 @@ For testing we'll need an `Eq` instance for `FancyProofLine` that ignores the `L
 >       (q1 == q2) && (s1 == s2) && (p1 == p2)
 >     (FancyAssume _ n1 q1, FancyAssume _ n2 q2) ->
 >       (n1 == n2) && (q1 == q2)
+>     (FancyChain _ e1 w1, FancyChain _ e2 w2) ->
+>       (e1 == e2) && (w1 == w2)
+>     _ -> False
+
+> instance Eq ChainRef where
+>   r1 == r2 = case (r1,r2) of
+>     (ChainUse _ n1 t1, ChainUse _ n2 t2) ->
+>       (n1 == n2) && (t1 == t2)
+>     (ChainHyp _ n1, ChainHyp _ n2) ->
+>       (n1 == n2)
+>     (ChainAssume _ a1, ChainAssume _ a2) ->
+>       (a1 == a2)
 >     _ -> False
 
 For funsies, here's an `Arbitrary` instance.
@@ -106,6 +133,7 @@ For funsies, here's an `Arbitrary` instance.
 >     , FancyHyp <$> arbitrary <*> arbitrary <*> arbitrary
 >     , FancyDis <$> arbitrary <*> arbitrary <*> arbitrary
 >         <*> (abs <$> arbitrary)
+>     , FancyIntroEq <$> arbitrary <*> arbitrary
 >     , FancyElimEq <$> arbitrary <*> arbitrary <*> arbitrary
 >         <*> arbitrary <*> (abs <$> arbitrary) <*> (abs <$> arbitrary)
 >     , FancyIntroU <$> arbitrary <*> arbitrary <*> arbitrary
@@ -124,6 +152,8 @@ For funsies, here's an `Arbitrary` instance.
 >       [ FancyHyp loc name q' | q' <- shrink q ]
 >     FancyDis loc name q p ->
 >       [ FancyDis loc name q' p | q' <- shrink q ]
+>     FancyIntroEq loc w ->
+>       [ FancyIntroEq loc w' | w' <- shrink w ]
 >     FancyElimEq loc q x w pe pf ->
 >       [ FancyElimEq loc q' x w' pe pf |
 >           q' <- shrink q, w' <- shrink w ] ++
@@ -141,6 +171,15 @@ For funsies, here's an `Arbitrary` instance.
 >       [ FancySubst loc q s' p | s' <- shrink s ]
 >     FancyAssume loc t q ->
 >       [ FancyAssume loc t q' | q' <- shrink q ]
+>     FancyChain loc q ps ->
+>       [ FancyChain loc q' ps' | q' <- shrink q, ps' <- shrink ps ]
+> 
+> instance Arbitrary ChainRef where
+>   arbitrary = oneof
+>     [ ChainUse <$> arbitrary <*> arbitrary <*> ((map abs) <$> arbitrary)
+>     , ChainHyp <$> arbitrary <*> arbitrary
+>     , ChainAssume <$> arbitrary <*> (abs <$> arbitrary)
+>     ]
 > 
 > instance Arbitrary FancyProof where
 >   arbitrary = do
@@ -160,6 +199,9 @@ Deserialization of a fancy proof can fail in a few ways; we might have a referen
 >   | NegativeRef Int
 >   | ForwardRef Int Int
 >   | EmptyProof
+>   | EmptyChain
+>   | ChainMatchError
+>   | ChainBadSub
 >   deriving (Eq, Show)
 
 To deserialize, we construct the tree proof from the leaves to the root.
@@ -178,6 +220,8 @@ To deserialize, we construct the tree proof from the leaves to the root.
 >           FancyDis loc name q u -> do
 >             p <- deserializeBelowAt k u
 >             return $ Dis loc name q p
+>           FancyIntroEq loc q -> do
+>             return $ IntroEq loc q
 >           FancyElimEq loc q x e u v -> do
 >             pu <- deserializeBelowAt k u
 >             pv <- deserializeBelowAt k v
@@ -195,6 +239,8 @@ To deserialize, we construct the tree proof from the leaves to the root.
 >           FancyUse loc name q us -> do
 >             ps <- mapM (deserializeBelowAt k) us
 >             return $ Use loc name q ps
+>           FancyChain loc e ws ->
+>             deserializeChainAt k e (reverse ws)
 > 
 >     deserializeBelowAt k u =
 >       if u >= k
@@ -202,6 +248,83 @@ To deserialize, we construct the tree proof from the leaves to the root.
 >         else do
 >           p <- deserializeAt u
 >           return p
+
+Let's talk about deserializing chains. The idea here is that we've got a list of expressions $E_1$, $E_2$, ..., $E_k$, each one equal to the last, and we want to expand this to a proof tree with $E_1 = E_k$ at the root. We can do this by recursively constructing trees for $E_1 = E_2$, $E_1 = E_3$ and so on as follows.
+
+The simplest case is a chain with only one expression after $E_1$, like this:
+
+* $E_1 (= F(u))$ : chain
+  * $= E_2 (= F(v))$ : REF at $w$ in $F(w)$
+
+We can turn this into the following proof tree:
+
+* $E_1 = E_2$ : eq-elim $w$ $E_1 = F(w)$
+  * $u = v$ : REF
+  * $E_1 = E_1$ : eq-intro
+
+For the general case, suppose we can build a proof tree for an equation chain of length $n$. Given one of length $n+1$,
+
+* $E_1$ : chain
+  * $\vdots$
+  * $= E_n (= F(u))$ : ...
+  * $= E_{n+1} (= F(v))$ : REF at $w$ in $F(w)$
+
+Letting $x$ be fresh in $E_1$, $E_n$, and $E_{n+1}$, we can build a proof tree for $E_1 = E_{n+1}$ like so.
+
+* $E_1 = E_{n+1}$ : eq-elim $x$ $E_1 = x$
+  * $E_n = E_{n+1}$ : eq-elim $w$ $E_n = F(w)$
+    * $u = v$ : REF
+    * $E_n = E_n$ : eq-intro
+  * $E_1 = E_n$ : RECUR
+
+Abbreviating equation chains like this makes the reasoning much closer to the way we'd write an equational proof by hand -- we can have both formal verification and readability.
+
+>     deserializeChainAt
+>       :: Int -> Expr -> [(Expr, Maybe (Var Expr, Expr), ChainRef)]
+>       -> Either DeserializeError Proof
+>     deserializeChainAt k e ws = case ws of
+>       [] -> Left EmptyChain
+>       (e2, h, ref):rest -> do
+>         let
+>           (w,f) = case h of
+>             Just m -> m
+>             Nothing -> let g = fresh [ freeExprVars e, freeExprVars e2 ]
+>               in (g, EVar Q g)
+>         case rest of
+>           [] -> do
+>             u <- matchVar w f e
+>             v <- matchVar w f e2
+>             p <- deserializeChainRefAt k (JEq Q u v) ref
+>             return $
+>               ElimEq Q (JEq Q e e2) w (JEq Q e f)
+>                 p (IntroEq Q (JEq Q e e))
+>           (e3,_,_):_ -> do
+>             u <- matchVar w f e3
+>             v <- matchVar w f e2
+>             p <- deserializeChainRefAt k (JEq Q u v) ref
+>             let x = fresh [ freeExprVars e, freeExprVars e2, freeExprVars e3 ]
+>             p2 <- deserializeChainAt k e rest
+>             return $
+>               ElimEq Q (JEq Q e e2) x (JEq Q e (EVar Q x))
+>                 (ElimEq Q (JEq Q e3 e2) w (JEq Q e3 f)
+>                   p (IntroEq Q (JEq Q e3 e3)))
+>                 p2
+>       where
+>         deserializeChainRefAt
+>           :: Int -> Jud -> ChainRef -> Either DeserializeError Proof
+>         deserializeChainRefAt k q ref = case ref of
+>           ChainHyp loc name -> Right $ Hyp loc name q
+>           ChainAssume loc i -> Right $ Assume loc i q
+>           ChainUse loc name ds -> do
+>             ps <- mapM (deserializeBelowAt k) ds
+>             return $ Use loc name q ps
+> 
+>         matchVar
+>           :: Var Expr -> Expr -> Expr
+>           -> Either DeserializeError Expr
+>         matchVar w f e = case matchExpr f e of
+>           Nothing -> Left ChainMatchError
+>           Just s -> let Just u = applySub w s in return u
 
 
 
@@ -226,11 +349,21 @@ We need a couple of utilities. First is `catFancyProof`, which concatenates two 
 >       FancyUse loc name q ps -> FancyUse loc name q (map (k+) ps)
 >       FancyHyp loc name q -> FancyHyp loc name q
 >       FancyDis loc name q p -> FancyDis loc name q (k+p)
+>       FancyIntroEq loc w -> FancyIntroEq loc w
 >       FancyElimEq loc q x w u v -> FancyElimEq loc q x w (k+u) (k+v)
 >       FancyIntroU loc q x y p -> FancyIntroU loc q x y (k+p)
 >       FancyElimU loc q x e p -> FancyElimU loc q x e (k+p)
 >       FancySubst loc q s p -> FancySubst loc q s (k+p)
 >       FancyAssume loc t q -> FancyAssume loc t q
+>       FancyChain loc w qs -> FancyChain loc w (map (f k) qs)
+> 
+>     bumpChainRef :: Int -> ChainRef -> ChainRef
+>     bumpChainRef k = \case
+>       ChainUse loc name us -> ChainUse loc name (map (k+) us)
+>       ChainHyp loc name -> ChainHyp loc name
+>       ChainAssume loc i -> ChainAssume loc i
+> 
+>     f k (x,w,ref) = (x,w,bumpChainRef k ref)
 
 We also need `sizeOf`, which gets the largest line label of a fancy proof. 
 
@@ -252,6 +385,8 @@ We're now prepared to serialize proofs. The result is a _list_ of fancy proofs, 
 >     let k = sizeOf m
 >     [ append m $ FancyProof $ M.fromList
 >       [ (1, FancyDis loc name q k) ] ]
+>   IntroEq loc w ->
+>     [ FancyProof $ M.fromList [ (1, FancyIntroEq loc w) ] ]
 >   ElimEq loc w x q pe pf -> do
 >     me <- serialize pe
 >     mf <- serialize pf

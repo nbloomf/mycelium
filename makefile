@@ -1,23 +1,23 @@
 files = \
-  doc/Mycelium.html \
-  doc/Var.html \
-  doc/Sub.html \
-  doc/Expr.html \
-  doc/Type.html \
-  doc/Infer.html \
-  doc/Jud.html \
-  doc/Proof.html \
-  doc/Module.html \
-  doc/Fancy.html \
-  doc/Parser.html
+  docs/Mycelium.html \
+  docs/Var.html \
+  docs/Sub.html \
+  docs/Expr.html \
+  docs/Type.html \
+  docs/Infer.html \
+  docs/Jud.html \
+  docs/Proof.html \
+  docs/Module.html \
+  docs/Fancy.html \
+  docs/Parser.html
 
-docs: $(files) doc/Tests.html doc/Main.html
+docs: $(files) docs/Tests.html docs/Main.html
 
-doc/%.html: src/%.lhs
+docs/%.html: src/%.lhs
 	pandoc --mathjax -s -c style.css -o $@ $<
 
-doc/Tests.html: test/Tests.lhs
+docs/Tests.html: test/Tests.lhs
 	pandoc --mathjax -s -c style.css -o $@ $<
 
-doc/Main.html: app/Main.lhs
+docs/Main.html: app/Main.lhs
 	pandoc --mathjax -s -c style.css -o $@ $<

@@ -197,6 +197,7 @@ $$\begin{array}{ccc}
 The elipses are doing a lot of work here. The idea is that $P$ is introduced as a named hypothesis somewhere above $Q$, and this is discharged as $P \Rightarrow Q$ but not before. The "but not before" part is the state; when validating a proof from the leaves to the root, we have to keep track of which hypotheses have been introduced and which have already been discharged.
 
 >   | ElimEq Loc Jud (Var Expr) Jud Proof Proof
+>   | IntroEq Loc Jud
 
 The `ElimEq` rule is what justifies substituting equals for equals in a judgement. Schematically it looks like this:
 
@@ -205,7 +206,7 @@ s = t &                   & \Phi[x \mapsto s] \\ \hline
       & \Phi[x \mapsto t] &
 \end{array}$$
 
-Where [square brackets] denote a substitution; $\Phi[x \mapsto s]$ is obtained by replacing all free occurrences of the expression variable $x$ in $\Phi$ by the expression $s$. This substitution is not part of the judgement syntax itself, but rather a kind of metasyntax; that's why this rule needs to be dealt with separately. The introduction rule for equality can use `Use`, so doesn't need special attention.
+Where [square brackets] denote a substitution; $\Phi[x \mapsto s]$ is obtained by replacing all free occurrences of the expression variable $x$ in $\Phi$ by the expression $s$. This substitution is not part of the judgement syntax itself, but rather a kind of metasyntax; that's why this rule needs to be dealt with separately. `IntroEq` is the introduction rule for equality; it can be defined with `Use` (it doesn't require any syntactic support) but it will be handy to build this into the syntax.
 
 >   | IntroU Loc Jud (Var Expr) (Var Expr) Proof
 >   | ElimU Loc Jud (Var Expr) Expr Proof
@@ -261,6 +262,8 @@ For testing, we'll need an `Eq` instance for `Proof` that ignores `Loc` paramete
 >       (n1 == n2) && (p1 == p2)
 >     (Dis _ n1 q1 p1, Dis _ n2 q2 p2) ->
 >       (n1 == n2) && (p1 == p2) && (q1 == q2)
+>     (IntroEq _ e1, IntroEq _ e2) ->
+>       (e1 == e2)
 >     (ElimEq _ q1 x1 e1 p1 u1, ElimEq _ q2 x2 e2 p2 u2) ->
 >       (q1 == q2) && (x1 == x2) && (e1 == e2) && (p1 == p2) && (u1 == u2)
 >     (IntroU _ q1 x1 y1 p1, IntroU _ q2 x2 y2 p2) ->
@@ -288,6 +291,7 @@ And here's an `Arbitrary` instance.
 >             oneof
 >               [ Dis <$> arbitrary <*> arbitrary <*> arbitrary
 >                   <*> recur
+>               , IntroEq <$> arbitrary <*> arbitrary
 >               , ElimEq <$> arbitrary <*> arbitrary <*> arbitrary
 >                   <*> arbitrary <*> recur <*> recur
 >               , Subst <$> arbitrary <*> arbitrary <*> arbitrary
@@ -308,6 +312,8 @@ And here's an `Arbitrary` instance.
 >       [ Dis loc n q' p' | q' <- shrink q, p' <- shrink p ] ++
 >       [ Dis loc n q p' | p' <- shrink p ] ++
 >       [ Dis loc n q' p | q' <- shrink q ]
+>     IntroEq loc j ->
+>       [ IntroEq loc q | q <- shrink j ]
 >     ElimEq loc u x v p q ->
 >       [ p, q ] ++
 >       [ ElimEq loc u' x v' p' q' |
@@ -467,6 +473,7 @@ We also have a rogues gallery of things that can go wrong with a proof.
 >   | FreeVariableInPremise Loc (Var Expr)
 >   | BindingFreeVar Loc (Var Expr) Jud
 >   | EqExpected Loc
+>   | NotEqual Loc
 >   | BadEqSubstitutionRHS Loc
 >   | BadEqSubstitutionLHS Loc
 >   | MalformedIntroU Loc
@@ -561,8 +568,15 @@ To check a discharge proof, we recursively check its child proof and look up and
 >             else checkError $ BadEqSubstitutionRHS loc
 >           else checkError $ BadEqSubstitutionLHS loc
 >       _ -> checkError $ EqExpected loc
+> 
+>   IntroEq loc q -> do
+>     case q of
+>       JEq loc' e1 e2 -> if e1 == e2
+>         then return $ JEq loc' e1 e2
+>         else checkError $ NotEqual loc
+>       _ -> checkError $ EqExpected loc
 
-The equality elimination rule needs to ensure we've given it a proof of the correct form.
+The equality elimination and introduction rules need to ensure we've given proofs of the correct form.
 
 >   Subst loc w s pf -> do
 >     q <- checkProof pf
@@ -645,6 +659,7 @@ We can also type check proofs.
 >     [ typeCheck w
 >     , checkTypes pf
 >     ] env
+>   IntroEq _ p -> typeCheck p env
 >   ElimEq _ w x q pe pf -> concatM
 >     [ typeCheck w
 >     , typeCheck q

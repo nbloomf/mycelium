@@ -766,6 +766,7 @@ Proofs can also be written in either basic or fancy style.
 >   try (string "hypothesis") <|>
 >   try (string "discharge") <|>
 >   try (string "eq-elim") <|>
+>   try (string "eq-intro") <|>
 >   try (string "sub") <|>
 >   try (string "forall-intro") <|>
 >   try (string "forall-elim") <|>
@@ -793,6 +794,8 @@ Basic style:
 >           [ ind i, "* ", prettyBasic w, " : eq-elim "
 >           , prettyBasic x, " ", prettyBasic q, "\n" ]
 >             ++ pretty (i+1) pe ++ pretty (i+1) pf
+>         IntroEq _ q -> concat
+>           [ ind i, "* ", prettyBasic q, " : eq-intro\n" ]
 >         Subst _ w s pf -> concat
 >           [ ind i, "* ", prettyBasic w, " : sub "
 >           , prettyBasic s, "\n" ]
@@ -836,6 +839,10 @@ Basic style:
 >             newline
 >             pf <- p (i+1)
 >             return (Dis loc n q pf)
+> 
+>           "eq-intro" -> do
+>             newline
+>             return (IntroEq loc q)
 > 
 >           "eq-elim" -> do
 >             x <- parseBasic
@@ -889,6 +896,8 @@ Parsing fancy proof lines:
 >     FancyAssume _ i q -> concat
 >       [ prettyBasic q, " : assumption "
 >       , show i, "\n" ]
+>     FancyIntroEq _ w -> concat
+>       [ prettyBasic w, " : eq-intro\n" ]
 >     FancyElimEq _ w x q u v -> concat
 >       [ prettyBasic w, " : eq-elim "
 >       , prettyBasic x, " ", prettyBasic q, "; "
@@ -910,8 +919,8 @@ Parsing fancy proof lines:
 >       , prettyBasic name, "; "
 >       , intercalate ", " $ map show us, "\n" ]
 > 
->   parseBasic = do
->     w <- parseBasic
+>   parseBasic = (do
+>     w <- try parseBasic
 >     char ':' >> spaceChars
 >     loc <- getLoc
 >     just <- proofKeyword
@@ -933,6 +942,10 @@ Parsing fancy proof lines:
 >         u <- read <$> many1 digit
 >         newline
 >         return $ FancyDis loc n w u
+> 
+>       "eq-intro" -> do
+>         newline
+>         return $ FancyIntroEq loc w
 > 
 >       "eq-elim" -> do
 >         x <- parseBasic
@@ -977,7 +990,60 @@ Parsing fancy proof lines:
 >         newline
 >         return $ FancyUse loc n w us
 > 
->       x -> unexpected x
+>       x -> unexpected x)
+>     <|> parseChain
+
+> parseChain :: Parser FancyProofLine
+> parseChain = do
+>   e <- try parseBasic
+>   char ':' >> spaceChars
+>   loc <- getLoc
+>   string "chain" >> spaceChars
+>   newline
+>   ms <- many1 $ do
+>     spaceChars >> string "==" >> spaceChars
+>     e2 <- parseBasic
+>     char ':' >> spaceChars
+>     just <- parseChainJust
+>     spaceChars
+>     case just of
+>       "hypothesis" -> do
+>         n <- parseBasic
+>         h <- parseAtIn
+>         newline
+>         return (e2, h, ChainHyp loc n)
+> 
+>       "assumption" -> do
+>         i <- read <$> many1 digit
+>         spaceChars
+>         h <- parseAtIn
+>         newline
+>         return (e2, h, ChainAssume loc i)
+> 
+>       "use" -> do
+>         n <- parseBasic
+>         char ';' >> spaceChars
+>         us <- (map read) <$> (sepBy (many1 digit) (char ',' >> spaceChars))
+>         spaceChars
+>         h <- parseAtIn
+>         newline
+>         return (e2, h, ChainUse loc n us)
+> 
+>   return $ FancyChain loc e ms
+
+> parseAtIn :: Parser (Maybe (Var Expr, Expr))
+> parseAtIn = option Nothing $ do
+>   try (string "at" >> spaceChars)
+>   w <- parseBasic
+>   string "in" >> spaceChars
+>   f <- parseBasic
+>   return $ Just (w,f)
+
+> parseChainJust :: Parser String
+> parseChainJust =
+>   try (string "use") <|>
+>   try (string "hypothesis") <|>
+>   string "assumption"
 
 Parsing fancy proofs:
 
