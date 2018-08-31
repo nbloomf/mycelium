@@ -225,7 +225,7 @@ $$\begin{array}{c}
 \Phi[x \mapsto u]
 \end{array}$$
 
-with the side condition that $x$ is the only free variable in $\Phi$. These side conditions are another kind of contextual state, which is why these need to be handled separately.
+These side conditions are another kind of contextual state, which is why these need to be handled separately.
 
 >   | Subst Loc Jud (Sub Expr) Proof
 
@@ -599,8 +599,8 @@ The substitution proof just checks syntactic equality.
 >     case q of
 >       JAll _ z p ->
 >         if x == z
->           then if w == (x --> e) $> q
->             then return $ (x --> e) $> q
+>           then if w == (x --> e) $> p
+>             then return $ (x --> e) $> p
 >             else checkError $ MalformedElimU loc
 >           else checkError $ AllVarMismatch loc x z
 >       _ -> checkError $ AllExpected loc

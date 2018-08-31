@@ -79,7 +79,7 @@ There's one special case. A very common pattern is the _equational proof_; one w
 >   | FancyElimU Loc Jud (Var Expr) Expr Int
 >   | FancySubst Loc Jud (Sub Expr) Int
 >   | FancyAssume Loc Int Jud
->   | FancyChain Loc Expr [(Expr, Maybe (Var Expr, Expr), ChainRef)]
+>   | FancyChain Loc Expr [(Expr, Maybe (Var Expr, Expr), Bool, ChainRef)]
 >   deriving (Show)
 > 
 > data ChainRef
@@ -280,11 +280,11 @@ Letting $x$ be fresh in $E_1$, $E_n$, and $E_{n+1}$, we can build a proof tree f
 Abbreviating equation chains like this makes the reasoning much closer to the way we'd write an equational proof by hand -- we can have both formal verification and readability.
 
 >     deserializeChainAt
->       :: Int -> Expr -> [(Expr, Maybe (Var Expr, Expr), ChainRef)]
+>       :: Int -> Expr -> [(Expr, Maybe (Var Expr, Expr), Bool, ChainRef)]
 >       -> Either DeserializeError Proof
 >     deserializeChainAt k e ws = case ws of
 >       [] -> Left EmptyChain
->       (e2, h, ref):rest -> do
+>       (e2, h, flop, ref):rest -> do
 >         let
 >           (w,f) = case h of
 >             Just m -> m
@@ -292,16 +292,16 @@ Abbreviating equation chains like this makes the reasoning much closer to the wa
 >               in (g, EVar Q g)
 >         case rest of
 >           [] -> do
->             u <- matchVar w f e
->             v <- matchVar w f e2
->             p <- deserializeChainRefAt k (JEq Q u v) ref
+>             u <- matchVar w f $ if flop then e2 else e
+>             v <- matchVar w f $ if flop then e else e2
+>             p <- deserializeChainRefAt k u v flop ref
 >             return $
 >               ElimEq Q (JEq Q e e2) w (JEq Q e f)
 >                 p (IntroEq Q (JEq Q e e))
->           (e3,_,_):_ -> do
->             u <- matchVar w f e3
->             v <- matchVar w f e2
->             p <- deserializeChainRefAt k (JEq Q u v) ref
+>           (e3,_,_,_):_ -> do
+>             u <- matchVar w f $ if flop then e2 else e3
+>             v <- matchVar w f $ if flop then e3 else e2
+>             p <- deserializeChainRefAt k u v flop ref
 >             let x = fresh [ freeExprVars e, freeExprVars e2, freeExprVars e3 ]
 >             p2 <- deserializeChainAt k e rest
 >             return $
@@ -311,13 +311,24 @@ Abbreviating equation chains like this makes the reasoning much closer to the wa
 >                 p2
 >       where
 >         deserializeChainRefAt
->           :: Int -> Jud -> ChainRef -> Either DeserializeError Proof
->         deserializeChainRefAt k q ref = case ref of
->           ChainHyp loc name -> Right $ Hyp loc name q
->           ChainAssume loc i -> Right $ Assume loc i q
->           ChainUse loc name ds -> do
->             ps <- mapM (deserializeBelowAt k) ds
->             return $ Use loc name q ps
+>           :: Int -> Expr -> Expr -> Bool -> ChainRef -> Either DeserializeError Proof
+>         deserializeChainRefAt k u v flop ref = do
+>           let
+>             p = JEq Q u v
+>           pf <- case ref of
+>             ChainHyp loc name -> Right $ Hyp loc name p
+>             ChainAssume loc i -> Right $ Assume loc i p
+>             ChainUse loc name ds -> do
+>               ps <- mapM (deserializeBelowAt k) ds
+>               return $ Use loc name p ps
+>           if flop
+>             then do
+>               let
+>                 x = fresh [ freeExprVars u, freeExprVars v ]
+>               return $
+>                 ElimEq Q (JEq Q v u) x (JEq Q (EVar Q x) u)
+>                   pf (IntroEq Q (JEq Q u u))
+>             else return pf
 > 
 >         matchVar
 >           :: Var Expr -> Expr -> Expr
@@ -363,7 +374,7 @@ We need a couple of utilities. First is `catFancyProof`, which concatenates two 
 >       ChainHyp loc name -> ChainHyp loc name
 >       ChainAssume loc i -> ChainAssume loc i
 > 
->     f k (x,w,ref) = (x,w,bumpChainRef k ref)
+>     f k (x,w,flop,ref) = (x,w,flop,bumpChainRef k ref)
 
 We also need `sizeOf`, which gets the largest line label of a fancy proof. 
 

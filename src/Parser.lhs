@@ -64,6 +64,9 @@ We'll also be tossing out lots of whitespace. But the `spaces` parser built into
 
 > spaceChars :: Parser ()
 > spaceChars = many (char ' ') >> return ()
+> 
+> spaceOrNewlines :: Parser ()
+> spaceOrNewlines = many (oneOf " \n") >> return ()
 
 The next two are for wrapping a parser in parentheses or curly braces.
 
@@ -924,7 +927,7 @@ Parsing fancy proof lines:
 >       parseLine :: Parser FancyProofLine
 >       parseLine = do
 >         w <- try parseBasic
->         char ':' >> spaceChars
+>         spaceOrNewlines >> char ':' >> spaceChars
 >         loc <- getLoc
 >         just <- proofKeyword
 >         spaceChars
@@ -998,14 +1001,15 @@ Parsing fancy proof lines:
 >       parseChain :: Parser FancyProofLine
 >       parseChain = do
 >         e <- try parseBasic
->         char ':' >> spaceChars
+>         spaceOrNewlines >> char ':' >> spaceChars
 >         loc <- getLoc
 >         string "chain" >> spaceChars
 >         newline
 >         ms <- many1 $ do
 >           spaceChars >> string "==" >> spaceChars
 >           e2 <- parseBasic
->           char ':' >> spaceChars
+>           spaceOrNewlines >> char ':' >> spaceChars
+>           flop <- option False (string "flop" >> spaceChars >> return True)
 >           just <- parseChainJust
 >           spaceChars
 >           case just of
@@ -1013,14 +1017,14 @@ Parsing fancy proof lines:
 >               n <- parseBasic
 >               h <- parseAtIn
 >               newline
->               return (e2, h, ChainHyp loc n)
+>               return (e2, h, flop, ChainHyp loc n)
 > 
 >             "assumption" -> do
 >               i <- read <$> many1 digit
 >               spaceChars
 >               h <- parseAtIn
 >               newline
->               return (e2, h, ChainAssume loc i)
+>               return (e2, h, flop, ChainAssume loc i)
 > 
 >             "use" -> do
 >               n <- parseBasic
@@ -1029,7 +1033,7 @@ Parsing fancy proof lines:
 >               spaceChars
 >               h <- parseAtIn
 >               newline
->               return (e2, h, ChainUse loc n us)
+>               return (e2, h, flop, ChainUse loc n us)
 > 
 >         return $ FancyChain loc e ms
 > 
