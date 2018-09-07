@@ -110,7 +110,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="cb4-6" data-line-number="6"></a>
 <a class="sourceLine" id="cb4-7" data-line-number="7">  <span class="kw">case</span> checkModules ms (emptyTypeEnv, <span class="dt">RuleEnv</span> mempty) <span class="kw">of</span></a>
 <a class="sourceLine" id="cb4-8" data-line-number="8">    <span class="dt">Left</span> err <span class="ot">-&gt;</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb4-9" data-line-number="9">      putStrLn <span class="fu">$</span> show err</a>
+<a class="sourceLine" id="cb4-9" data-line-number="9">      putStrLn <span class="fu">$</span> prettyError err</a>
 <a class="sourceLine" id="cb4-10" data-line-number="10">      exitFailure</a>
 <a class="sourceLine" id="cb4-11" data-line-number="11">    <span class="dt">Right</span> (<span class="dt">TypeEnv</span> types, <span class="dt">RuleEnv</span> rules) <span class="ot">-&gt;</span> <span class="kw">do</span></a>
 <a class="sourceLine" id="cb4-12" data-line-number="12">      putStrLn <span class="fu">$</span> <span class="st">&quot;rules: &quot;</span> <span class="fu">++</span> (show <span class="fu">$</span> size rules)</a>
