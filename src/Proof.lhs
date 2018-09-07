@@ -227,6 +227,25 @@ $$\begin{array}{c}
 
 These side conditions are another kind of contextual state, which is why these need to be handled separately.
 
+>   | IntroE Loc Jud (Var Expr) Expr Proof
+>   | ElimE Loc Jud (Var Expr) (Var Expr) Proof Proof
+
+`IntroE` and `ElimE` are the introduction and elimination rules for existential quantifiers. Schematically, `IntroE` is
+
+$$\begin{array}{c}
+\Phi[u \mapsto e] \\ \hline
+\exists u . \Phi
+\end{array}$$
+
+while `ElimE` is
+
+$$\begin{array}{c}
+\exists x. \Phi & & \Phi[x \mapsto u] \Rightarrow \Psi \\ \hline
+ & \Psi &
+\end{array}$$
+
+with the side conditions that $u$ does not occur in $\exists x . \Phi$, in $\Psi$, or in any undischarged hypotheses or assumptions in the proof of $\Phi[x \mapsto u] \Rightarrow \Psi$.
+
 >   | Subst Loc Jud (Sub Expr) Proof
 
 The `Subst`itution proof is a little different. Free variables in a proof denote a specific but arbitrary object. This is different from a variable bound by a forall, which denotes _every_ object of the appropriate type. As such, it makes sense to perform substitutions on the free variables. Schematically, that looks something like this:
@@ -270,6 +289,10 @@ For testing, we'll need an `Eq` instance for `Proof` that ignores `Loc` paramete
 >       (q1 == q2) && (x1 == x2) && (y1 == y2) && (p1 == p2)
 >     (ElimU _ q1 x1 e1 p1, ElimU _ q2 x2 e2 p2) ->
 >       (q1 == q2) && (x1 == x2) && (e1 == e2) && (p1 == p2)
+>     (IntroE _ q1 x1 e1 p1, IntroE _ q2 x2 e2 p2) ->
+>       (q1 == q2) && (x1 == x2) && (e1 == e2) && (p1 == p2)
+>     (ElimE _ q1 x1 y1 u1 v1, ElimE _ q2 x2 y2 u2 v2) ->
+>       (q1 == q2) && (x1 == x2) && (y1 == y2) && (u1 == u2) && (v1 == v2)
 >     (Subst _ q1 s1 p1, Subst _ q2 s2 p2) ->
 >       (q1 == q2) && (s1 == s2) && (p1 == p2)
 >     (Use _ n1 q1 p1, Use _ n2 q2 p2) ->
@@ -300,6 +323,10 @@ And here's an `Arbitrary` instance.
 >                   <*> arbitrary <*> recur
 >               , ElimU <$> arbitrary <*> arbitrary <*> arbitrary
 >                   <*> arbitrary <*> recur
+>               , IntroE <$> arbitrary <*> arbitrary <*> arbitrary
+>                   <*> arbitrary <*> recur
+>               , ElimE <$> arbitrary <*> arbitrary <*> arbitrary
+>                   <*> arbitrary <*> recur <*> recur
 >               , Use <$> arbitrary <*> arbitrary <*> arbitrary
 >                   <*> listOf recur
 >               ]
@@ -330,6 +357,14 @@ And here's an `Arbitrary` instance.
 >       [ p ] ++
 >       [ ElimU loc q' x e' p' |
 >         q' <- shrink q, e' <- shrink e, p' <- shrink p ]
+>     IntroE loc q x y p ->
+>       [ p ] ++
+>       [ IntroE loc q' x y p' |
+>         q' <- shrink q, p' <- shrink p ]
+>     ElimE loc q x e p u ->
+>       [ p ] ++
+>       [ ElimE loc q' x e' p' u' |
+>         q' <- shrink q, e' <- shrink e, p' <- shrink p, u' <- shrink u ]
 >     Use loc name p ps ->
 >       ps ++
 >       [ Use loc name p' ps' |
@@ -465,7 +500,7 @@ We also have a rogues gallery of things that can go wrong with a proof.
 >   | BadSubstitution (Sub Expr)
 >   | RuleNotFound RuleName
 >   | MalformedSubstitution Loc
->   | RuleDoesNotMatch Loc RuleName
+>   | RuleDoesNotMatch Loc RuleName Rule [Jud]
 >   | ReusedAssumptions (S.Set Int)
 >   | ProofDoesNotMatch Rule Jud [Jud]
 >   | RuleAlreadyDefined RuleName
@@ -478,7 +513,12 @@ We also have a rogues gallery of things that can go wrong with a proof.
 >   | BadEqSubstitutionLHS Loc
 >   | MalformedIntroU Loc
 >   | MalformedElimU Loc
+>   | MalformedIntroE Loc
+>   | SomeVarMismatch Loc
+>   | SomeSubMismatch Loc
 >   | AllExpected Loc
+>   | MalformedElimE Loc
+>   | ElimEBindVar Loc
 >   | AllVarMismatch Loc (Var Expr) (Var Expr)
 >   | TypeUnificationError UnificationError
 >   | InferenceError TypeError
@@ -607,11 +647,40 @@ The substitution proof just checks syntactic equality.
 
 The universal introduction and elimination rules need to check their respective side conditions.
 
+>   IntroE loc w x e pf -> do
+>     q <- checkProof pf
+>     case w of
+>       JSome _ y p -> do
+>         if x == y
+>           then if q == (x --> e) $> p
+>             then return w
+>             else checkError $ SomeSubMismatch loc
+>           else checkError $ SomeVarMismatch loc
+>       _ -> checkError $ MalformedIntroE loc
+> 
+>   ElimE loc w u x pe pi -> do
+>     qe <- checkProof pe
+>     qi <- unusedInHyp loc u $ checkProof pi
+>     case (qe, qi) of
+>       (JSome _ y pe, JImpl _ pi m) ->
+>         if y == x
+>           then if pi == (x --> (EVar Q u)) $> pe
+>             then if (S.member u (freeExprVars pe))
+>                    || (S.member u (freeExprVars m))
+>               then checkError $ ElimEBindVar loc
+>               else if w == m
+>                 then return w
+>                 else checkError $ MalformedElimE loc
+>             else checkError $ MalformedElimE loc
+>           else checkError $ SomeVarMismatch loc
+
+The existential introduction and elimination rules need to check their respective side conditions.
+
 >   Use loc name c ps -> do
 >     hs <- mapM checkProof ps
 >     r <- lookupRule name
 >     case matchRule r c hs of
->       Nothing -> checkError $ RuleDoesNotMatch loc name
+>       Nothing -> checkError $ RuleDoesNotMatch loc name r (c:hs)
 >       Just _ -> return c
 
 Finally we have `Use`; these proofs are checked by recursively checking the child proofs and then verifying that the named rule matches.
@@ -677,6 +746,15 @@ We can also type check proofs.
 >   ElimU _ w x e pf -> concatM
 >     [ typeCheck w
 >     , checkTypes pf
+>     ] env
+>   IntroE _ w x e pf -> concatM
+>     [ typeCheck w
+>     , checkTypes pf
+>     ] env
+>   ElimE _ w u x pe pi -> concatM
+>     [ typeCheck w
+>     , checkTypes pe
+>     , checkTypes pi
 >     ] env
 >   Use _ n q pfs -> concatM
 >     ( typeCheck q : map checkTypes pfs ) env

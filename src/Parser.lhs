@@ -565,6 +565,8 @@ The judgement grammar uses infix notation; we use parsec's built in `buildExpres
 >       [ prettyBasicWrap e, " 'is ", "\"", m, "\"" ]
 >     JAll _ x p -> concat
 >       [ "∀", prettyBasic x, ".", prettyBasicWrap p ]
+>     JSome _ x p -> concat
+>       [ "∃", prettyBasic x, ".", prettyBasicWrap p ]
 > 
 >   parseBasic = buildExpressionParser ops terms
 >     where
@@ -586,7 +588,7 @@ The judgement grammar uses infix notation; we use parsec's built in `buildExpres
 > 
 >         , [ Infix (do
 >             { loc <- getLoc
->             ; string "=>" >> spaceChars >> return (JImpl loc)
+>             ; string "=>" >> spaceOrNewlines >> return (JImpl loc)
 >             }) AssocNone ]
 > 
 >         , [ Infix (do
@@ -599,6 +601,13 @@ The judgement grammar uses infix notation; we use parsec's built in `buildExpres
 >             ; char '∀'; spaceChars
 >             ; x <- parseBasic
 >             ; char '.' >> spaceChars; return (JAll loc x)
+>             } ]
+> 
+>         , [ Prefix $ do
+>             { loc <- getLoc
+>             ; char '∃'; spaceChars
+>             ; x <- parseBasic
+>             ; char '.' >> spaceChars; return (JSome loc x)
 >             } ]
 >         ]
 > 
@@ -773,6 +782,8 @@ Proofs can also be written in either basic or fancy style.
 >   try (string "sub") <|>
 >   try (string "forall-intro") <|>
 >   try (string "forall-elim") <|>
+>   try (string "exists-intro") <|>
+>   try (string "exists-elim") <|>
 >   (string "use")
 
 Basic style:
@@ -811,6 +822,14 @@ Basic style:
 >           [ ind i, "* ", prettyBasic w, " : forall-elim "
 >           , prettyBasic x, " -> ", prettyBasic e, "\n" ]
 >             ++ pretty (i+1) pf
+>         IntroE _ w x e pf -> concat
+>           [ ind i, "* ", prettyBasic w, " : exists-intro "
+>           , prettyBasic x, " <- ", prettyBasic e, "\n" ]
+>             ++ pretty (i+1) pf
+>         ElimE _ w u x pe pi -> concat
+>           [ ind i, "* ", prettyBasic w, " : exists-elim "
+>           , prettyBasic x, " <- ", prettyBasic u, "\n" ]
+>             ++ pretty (i+1) pe ++ pretty (i+1) pi
 >         Use _ name q pfs -> concat
 >           [ ind i, "* ", prettyBasic q, " : use "
 >           , prettyBasic name, "\n" ]
@@ -878,6 +897,23 @@ Basic style:
 >             pf <- p (i+1)
 >             return (ElimU loc q x e pf)
 > 
+>           "exists-intro" -> do
+>             x <- parseBasic
+>             string "<-" >> spaceChars
+>             e <- parseBasic
+>             newline
+>             pf <- p (i+1)
+>             return (IntroE loc q x e pf)
+> 
+>           "exists-elim" -> do
+>             x <- parseBasic
+>             string "<-" >> spaceChars
+>             u <- parseBasic
+>             newline
+>             pe <- p (i+1)
+>             pi <- p (i+1)
+>             return (ElimE loc q u x pe pi)
+> 
 >           "use" -> do
 >             n <- parseBasic
 >             newline
@@ -917,6 +953,14 @@ Parsing fancy proof lines:
 >       [ prettyBasic w, " : forall-elim "
 >       , prettyBasic x, " -> ", prettyBasic e, "; "
 >       , show u, "\n" ]
+>     FancyIntroE _ w x e u -> concat
+>       [ prettyBasic w, " : exists-intro "
+>       , prettyBasic x, " <- ", prettyBasic e, "; "
+>       , show u, "\n" ]
+>     FancyElimE _ w x q u v -> concat
+>       [ prettyBasic w, " : exists-elim "
+>       , prettyBasic x, " <- ", prettyBasic q, "; "
+>       , show u, ", ", show v, "\n" ]
 >     FancyUse _ name w us -> concat
 >       [ prettyBasic w, " : use "
 >       , prettyBasic name, "; "
@@ -988,6 +1032,26 @@ Parsing fancy proof lines:
 >             u <- read <$> many1 digit
 >             newline
 >             return $ FancyElimU loc w x e u
+> 
+>           "exists-intro" -> do
+>             x <- parseBasic
+>             string "<-" >> spaceChars
+>             e <- parseBasic
+>             char ';' >> spaceChars
+>             u <- read <$> many1 digit
+>             newline
+>             return $ FancyIntroE loc w x e u
+> 
+>           "exists-elim" -> do
+>             x <- parseBasic
+>             string "<-" >> spaceChars
+>             e <- parseBasic
+>             char ';' >> spaceChars
+>             u <- read <$> many1 digit
+>             spaceChars >> char ',' >> spaceChars
+>             v <- read <$> many1 digit
+>             newline
+>             return $ FancyElimE loc w x e u v
 > 
 >           "use" -> do
 >             n <- parseBasic
@@ -1183,3 +1247,33 @@ A module is just a list of claims.
 >     m <- many parseBasic
 >     eof
 >     return (Module (ModuleName name) m)
+
+
+
+Errors
+------
+
+> prettyError :: VerifyError -> String
+> prettyError = \case
+>   HypAlreadyDefined n q -> unlines
+>     [ "Hypothesis '" ++ (prettyBasic n) ++ "' already defined."
+>     , prettyBasic q ]
+>   HypNotFound n -> unlines
+>     [ "Hypothesis '" ++ (prettyBasic n) ++ "' not found." ]
+>   HypNotDischarged ns -> unlines $
+>     [ "The following hypotheses were not discharged:" ]
+>       ++ map (\n -> "  * " ++ prettyBasic n) ns
+
+>   RuleDoesNotMatch loc n r qs -> unlines $
+>     [ "At " ++ show loc
+>     , "Rule '" ++ (prettyBasic n) ++ "' does not match."
+>     , prettyBasic r ]
+>       ++ map prettyBasic qs
+
+>   ProofDoesNotMatch r q qs -> unlines $
+>     [ "Proof does not match."
+>     , prettyBasic r
+>     , prettyBasic q ]
+>       ++ map (\q -> "  * " ++ prettyBasic q) qs
+
+>   err -> show err

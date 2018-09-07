@@ -35,7 +35,7 @@ The main program takes a list of filenames, parses them as modules, and checks t
 > 
 >   case checkModules ms (emptyTypeEnv, RuleEnv mempty) of
 >     Left err -> do
->       putStrLn $ show err
+>       putStrLn $ prettyError err
 >       exitFailure
 >     Right (TypeEnv types, RuleEnv rules) -> do
 >       putStrLn $ "rules: " ++ (show $ size rules)

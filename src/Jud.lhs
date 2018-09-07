@@ -51,15 +51,16 @@ Next we have three connectives involving expressions.
 >   | JEq Loc Expr Expr
 >   | JIs Loc Expr String
 >   | JAll Loc (Var Expr) Jud
+>   | JSome Loc (Var Expr) Jud
 >   deriving (Show)
 
 _Equals_ represents the statement that two expressions have the same "value", whatever that means. We can interpret this judgement as a rewrite rule -- the left hand side of an equation can be rewritten to the right hand side, and vice versa.
 
 The _is_ connective will be used to wrap complicated statements behind a name, like _injective_. It will have no introduction or elimination rules, and can only be introduced in a definition.
 
-The _universal_ connective represents a judgement within which one expression variable is explicitly quantified with forall.
+The _universal_ connective represents a judgement within which one expression variable is explicitly quantified with _for all_; the _existential_ connective represents an expression quantified with _there exists_.
 
-We haven't derived an `Eq` instance for `Jud`gements because we need it to account for renamings of the variable bound by foralls.
+We haven't derived an `Eq` instance for `Jud`gements because we need it to account for renamings of the variable bound by foralls and there existss.
 
 Here's an `Arbitrary` instance for judgements analogous to the ones for `Expr` and `MonoType`.
 
@@ -83,6 +84,7 @@ Here's an `Arbitrary` instance for judgements analogous to the ones for `Expr` a
 >               , JEqui <$> arbitrary <*> recur <*> recur
 >               , JEq <$> arbitrary <*> arbitrary <*> arbitrary
 >               , JAll <$> arbitrary <*> arbitrary <*> recur
+>               , JSome <$> arbitrary <*> arbitrary <*> recur
 >               ]
 > 
 >   shrink = \case
@@ -95,6 +97,7 @@ Here's an `Arbitrary` instance for judgements analogous to the ones for `Expr` a
 >     JEq loc e1 e2 -> shrink2 (JEq loc) e1 e2
 >     JIs _ _ _ -> []
 >     JAll loc x q -> q : map (JAll loc x) (shrink q)
+>     JSome loc x q -> q : map (JSome loc x) (shrink q)
 >     where
 >       shrink2 f a b =
 >         [ f u v | u <- shrink a, v <- shrink b ] ++
@@ -123,6 +126,8 @@ Every judgement has a (possibly empty) set of free expression variables. Variabl
 >   JIs !loc e _ -> freeExprVars e
 > 
 >   JAll !loc x q ->
+>     S.difference (freeExprVarsJ q) (S.singleton x)
+>   JSome !loc x q ->
 >     S.difference (freeExprVarsJ q) (S.singleton x)
 
 We need to be able to rename free expressions variables in a capture-avoiding way. As with expressions, this will generally change the meaning of a judgement but is useful as an intermediate step in computing alpha equivalence.
@@ -154,6 +159,15 @@ We need to be able to rename free expressions variables in a capture-avoiding wa
 >           , freeExprVarsJ q ]
 >       in JAll loc y (renameFreeJ (u,v) $ renameFreeJ (x,y) q)
 >     else JAll loc x (renameFreeJ (u,v) q)
+> 
+>   JSome !loc x q -> if (x == u) || (x == v)
+>     then
+>       let
+>         y = fresh
+>           [ S.fromList [u,v]
+>           , freeExprVarsJ q ]
+>       in JSome loc y (renameFreeJ (u,v) $ renameFreeJ (x,y) q)
+>     else JSome loc x (renameFreeJ (u,v) q)
 
 The only interesting bit happens with `JAll`. If the dummy variable `x` is equal to either `u` or `v`, we first swap it out with a fresh variable to avoid capturing any occurrences in `q`.
 
@@ -186,6 +200,15 @@ Next we tackle renaming bound variables.
 >         (renameBoundJ avoid $ renameFreeJ (x,y) q)
 >     else JAll loc x
 >       (renameBoundJ avoid q)
+> 
+>   JSome !loc x q -> if S.member x avoid
+>     then
+>       let
+>         y = fresh [S.singleton x, freeExprVarsJ q, avoid]
+>       in JSome loc y
+>         (renameBoundJ avoid $ renameFreeJ (x,y) q)
+>     else JSome loc x
+>       (renameBoundJ avoid q)
 
 These definitions make `Jud` an instance of `HasExprVars`.
 
@@ -208,6 +231,16 @@ We're now prepared to define alpha equivalence on judgements. This is more or le
 >     (JIs _ e1 m1, JIs _ e2 m2) -> (e1 == e2) && (m1 == m2)
 > 
 >     (JAll _ x1 q1, JAll _ x2 q2) -> if x1 == x2
+>       then q1 == q2
+>       else
+>         let
+>           y = fresh
+>             [ freeExprVars q1
+>             , freeExprVars q2 ]
+>         in
+>           (renameFreeExpr (x1,y) q1) == (renameFreeExpr (x2,y) q2)
+> 
+>     (JSome _ x1 q1, JSome _ x2 q2) -> if x1 == x2
 >       then q1 == q2
 >       else
 >         let
@@ -246,6 +279,16 @@ We'll need to apply substitutions to judgements in two ways: for judgement varia
 >           , freeExprVars q ]
 >       in
 >         JAll loc y (s $> (renameFreeExpr (x,y) q))
+> 
+>     JSome !loc x q ->
+>       let
+>         y = fresh
+>           [ S.singleton x
+>           , freeExprVars s
+>           , support s
+>           , freeExprVars q ]
+>       in
+>         JSome loc y (s $> (renameFreeExpr (x,y) q))
 
 As usual the only interesting bits happen for the `JAll` rule, where we have to rename the bound variable to avoid capture.
 
@@ -294,8 +337,17 @@ We can apply judgement substitutions to judgements. This is made simpler by the 
 >           , freeExprVars q ]
 >       in
 >         JAll loc y (s $~ (renameFreeExpr (x,y) q))
+> 
+>     JSome !loc x q ->
+>       let
+>         y = fresh
+>           [ S.singleton x
+>           , freeExprVars s
+>           , freeExprVars q ]
+>       in
+>         JSome loc y (s $~ (renameFreeExpr (x,y) q))
 
-Again in the `JAll` case we take care to avoid variable capture.
+Again in the `JAll` and `JSome` cases we take care to avoid variable capture.
 
 We can also apply judgement substitutions to judgement substitutions pointwise:
 
@@ -394,8 +446,23 @@ Is statements are similar to equations; match the expressions with the bound con
 >              (S.insert y bound)
 >              (renameFreeExpr (x1,y) q1)
 >              (renameFreeExpr (x2,y) q2)
+> 
+>       (JSome _ x1 q1, JSome _ x2 q2) ->
+>         if x1 == x2
+>           then matchJud' (S.insert x1 bound) q1 q2
+>           else do
+>             let
+>               y = fresh
+>                 [ bound
+>                 , S.fromList [x1,x2]
+>                 , freeExprVars q1
+>                 , freeExprVars q2 ]
+>             matchJud'
+>              (S.insert y bound)
+>              (renameFreeExpr (x1,y) q1)
+>              (renameFreeExpr (x2,y) q2)
 
-`JAll`s are similar to lambda expressions.
+`JAll`s and `JSome`s are similar to lambda expressions.
 
 >       _ -> Nothing
 
@@ -527,6 +594,22 @@ Finally, we can also check that the expressions in a judgement can be consistent
 >       (se,_) <- infer env2 e
 >       return (se $. env2)
 >     JAll _ x q -> do
+>       let TypeEnv m = env
+>       case M.lookup (Right x) m of
+>         Nothing ->
+>           introTypeVar x env
+>             >>= typeCheck q
+>             >>= elimTypeVar x
+>         Just _ -> do
+>           let
+>             y = fresh
+>               [ S.singleton x
+>               , typedVarsIn env
+>               , freeExprVars q ]
+>           introTypeVar y env
+>             >>= typeCheck (renameFreeExpr (x,y) q)
+>             >>= elimTypeVar y
+>     JSome _ x q -> do
 >       let TypeEnv m = env
 >       case M.lookup (Right x) m of
 >         Nothing ->
