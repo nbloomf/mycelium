@@ -88,7 +88,7 @@ P &            & Q \\ \hline
 In our notation, the and-introduction rule looks like this.
 
 > ax_and_intro :: Claim
-> ax_and_intro = Axiom
+> ax_and_intro = Axiom InferenceRule
 >   (RuleName "and-intro") $
 >   Rule
 >     (JConj Q (JVar Q (Var "p")) (JVar Q (Var "q")))
@@ -107,7 +107,7 @@ $$\begin{array}{c}
 \end{array}$$
 
 > ax_and_elim_1 :: Claim
-> ax_and_elim_1 = Axiom
+> ax_and_elim_1 = Axiom InferenceRule
 >   (RuleName "and-elim-1") $
 >   Rule
 >     (JVar Q (Var "p"))
@@ -115,7 +115,7 @@ $$\begin{array}{c}
 >     ]
 > 
 > ax_and_elim_2 :: Claim
-> ax_and_elim_2 = Axiom
+> ax_and_elim_2 = Axiom InferenceRule
 >   (RuleName "and-elim-2") $
 >   Rule
 >     (JVar Q (Var "q"))
@@ -163,7 +163,7 @@ $$\begin{array}{c}
 \end{array}$$
 
 > ax_modus_ponens :: Claim
-> ax_modus_ponens = Axiom
+> ax_modus_ponens = Axiom InferenceRule
 >   (RuleName "modus-ponens") $
 >   Rule
 >     (JVar Q (Var "q"))
@@ -200,7 +200,7 @@ $$\begin{array}{c}
 \end{array}$$
 
 > ax_eq_intro :: Claim
-> ax_eq_intro = Axiom
+> ax_eq_intro = Axiom InferenceRule
 >   (RuleName "eq-intro") $
 >   Rule
 >     (JEq Q (EVar Q (Var "x")) (EVar Q (Var "x")))

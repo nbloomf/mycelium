@@ -38,8 +38,11 @@ The main program takes a list of filenames, parses them as modules, and checks t
 >       putStrLn $ prettyError err
 >       exitFailure
 >     Right (TypeEnv types, RuleEnv rules) -> do
->       putStrLn $ "rules: " ++ (show $ size rules)
->       putStrLn $ "types: " ++ (show $ size types)
+>       let (a,b,c) = summarizeDeps $ getAllDeps ms
+>       putStrLn $ "rules:       " ++ (show a)
+>       putStrLn $ "definitions: " ++ (show b)
+>       putStrLn $ "theorems:    " ++ (show c)
+>       putStrLn $ "types:       " ++ (show $ size types)
 >       return ()
 > 
 > readModule :: FilePath -> IO Module

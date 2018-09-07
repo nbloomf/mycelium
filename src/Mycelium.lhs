@@ -33,6 +33,7 @@ Contents
   * [Modules](./Module.html)
   * [Fancy Proofs](./Fancy.html)
   * [Parsing](./Parser.html)
+  * [Dependencies](./Deps.html)
 * Appendices
   * [Main](./Main.html)
   * [Tests](./Tests.html)
@@ -55,6 +56,7 @@ This file is the base module of a Haskell library which implements the `mycelium
 >   , module Module
 >   , module Fancy
 >   , module Parser
+>   , module Dep
 > ) where
 >
 > import Var
@@ -67,6 +69,7 @@ This file is the base module of a Haskell library which implements the `mycelium
 > import Module
 > import Fancy
 > import Parser
+> import Dep
 
 
 

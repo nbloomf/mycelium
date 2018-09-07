@@ -775,18 +775,30 @@ Claims
 An _axiom_ is a rule we accept without proof, while a _theorem_ is a rule we accept only with a valid proof. Collectively axioms and theorems are called _claims_.
 
 > data Claim
->   = Axiom RuleName Rule
+>   = Axiom RuleType RuleName Rule
 >   | Theorem RuleName Rule Proof
 >   | TypeDecl (Con Expr) MonoType
+>   deriving (Eq, Show)
+> 
+> data RuleType
+>   = InferenceRule
+>   | Definition
 >   deriving (Eq, Show)
 > 
 > instance Arbitrary Claim where
 >   arbitrary = do
 >     k <- arbitrary :: Gen Int
 >     case k`mod`3 of
->       0 -> Axiom <$> arbitrary <*> arbitrary
+>       0 -> Axiom <$> arbitrary <*> arbitrary <*> arbitrary
 >       1 -> Theorem <$> arbitrary <*> arbitrary <*> arbitrary
 >       _ -> TypeDecl <$> arbitrary <*> arbitrary
+> 
+> instance Arbitrary RuleType where
+>   arbitrary = do
+>     p <- arbitrary
+>     if p
+>       then return InferenceRule
+>       else return Definition
 
 A _theory_ is a list of claims with the property that proofs only refer to named claims appearing earlier in the list. If the proof of a rule is valid, it can be added to the rule environment.
 
@@ -807,7 +819,7 @@ A _theory_ is a list of claims with the property that proofs only refer to named
 >   :: (TypeEnv, RuleEnv) -> Claim
 >   -> Either VerifyError (TypeEnv, RuleEnv)
 > checkClaim (typeEnv, ruleEnv) claim = case claim of
->   Axiom name rule -> do
+>   Axiom _ name rule -> do
 >     ruleEnv' <- addRule name rule ruleEnv
 >     liftInfer $ typeCheck rule typeEnv
 >     return (typeEnv, ruleEnv')

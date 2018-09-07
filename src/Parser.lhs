@@ -1175,15 +1175,20 @@ proof
 > claimKeyword :: Parser String
 > claimKeyword =
 >   try (string "rule") <|>
+>   try (string "definition") <|>
 >   try (string "theorem") <|>
 >   string "type"
 > 
 > instance PrettyBasic Claim where
 >   prettyBasic = \case
->     Axiom n ax -> concat
->       [ "rule ", prettyBasic n, "\n"
+>     Axiom t n ax -> concat
+>       [ l, " ", prettyBasic n, "\n"
 >       , prettyBasic ax, "\n"
 >       ]
+>       where
+>         l = case t of
+>           InferenceRule -> "rule"
+>           Definition -> "definition"
 >     Theorem n t pf -> concat
 >       [ "theorem ", prettyBasic n, "\n"
 >       , prettyBasic t, "\n"
@@ -1201,7 +1206,14 @@ proof
 >         many1 newline
 >         ax <- parseBasic <|> parseFancy
 >         many newline
->         return (Axiom n ax)
+>         return (Axiom InferenceRule n ax)
+> 
+>       "definition" -> do
+>         n <- parseBasic
+>         many1 newline
+>         ax <- parseBasic <|> parseFancy
+>         many newline
+>         return (Axiom Definition n ax)
 > 
 >       "theorem" -> do
 >         n <- parseBasic

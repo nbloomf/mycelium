@@ -43,6 +43,7 @@ library
     , Module
     , Fancy
     , Parser
+    , Dep
 
 
 

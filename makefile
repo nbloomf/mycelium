@@ -9,7 +9,8 @@ files = \
   docs/Proof.html \
   docs/Module.html \
   docs/Fancy.html \
-  docs/Parser.html
+  docs/Parser.html \
+  docs/Deps.html
 
 docs: $(files) docs/Tests.html docs/Main.html
 
