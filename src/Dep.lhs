@@ -5,6 +5,13 @@ title: Dependencies
 > {-# LANGUAGE LambdaCase #-}
 > module Dep where
 
+> import Data.GraphViz.Algorithms
+> import Data.GraphViz.Attributes
+> import Data.GraphViz.Types
+> import Data.GraphViz.Types.Graph (mkGraph)
+> import Data.GraphViz.Types.Canonical
+> import Data.GraphViz.Commands.IO
+> import Data.GraphViz.Printing
 > import Data.Maybe (catMaybes)
 
 > import Proof
@@ -56,3 +63,20 @@ title: Dependencies
 >       DepInferenceRule _ -> (1,0,0)
 >       DepDefinition _ -> (0,1,0)
 >       DepTheorem _ _ -> (0,0,1)
+
+> instance PrintDot RuleName where
+>   unqtDot (RuleName n) = unqtDot n
+>   toDot (RuleName n) = toDot n
+
+> fromDepToGraph :: Dep -> ([DotNode RuleName], [DotEdge RuleName])
+> fromDepToGraph = \case
+>   DepInferenceRule n -> ([DotNode n [color Green]], [])
+>   DepDefinition n -> ([DotNode n [color Blue]], [])
+>   DepTheorem n ms -> ([DotNode n [shape BoxShape]], map (\m -> DotEdge m n []) ms)
+
+> fromDepsToGraph :: [Dep] -> DotGraph RuleName
+> fromDepsToGraph ds =
+>   transitiveReduction $ canonicalise $ uncurry mkGraph $ mconcat $ map fromDepToGraph ds
+
+> printDot :: FilePath -> [Dep] -> IO ()
+> printDot path ds = writeDotFile path (fromDepsToGraph ds)

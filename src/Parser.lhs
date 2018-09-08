@@ -1288,4 +1288,11 @@ Errors
 >     , prettyBasic q ]
 >       ++ map (\q -> "  * " ++ prettyBasic q) qs
 
+>   AllVarMismatch loc x y j pf -> unlines
+>     [ "ForAll elimination: bound variable mismatch."
+>     , prettyBasic x ++ " does not match " ++ prettyBasic y
+>     , prettyBasic j
+>     , prettyBasic pf
+>     ]
+
 >   err -> show err

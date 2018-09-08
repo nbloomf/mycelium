@@ -519,7 +519,7 @@ We also have a rogues gallery of things that can go wrong with a proof.
 >   | AllExpected Loc
 >   | MalformedElimE Loc
 >   | ElimEBindVar Loc
->   | AllVarMismatch Loc (Var Expr) (Var Expr)
+>   | AllVarMismatch Loc (Var Expr) (Var Expr) Jud Proof
 >   | TypeUnificationError UnificationError
 >   | InferenceError TypeError
 >   deriving (Eq, Show)
@@ -638,11 +638,11 @@ The substitution proof just checks syntactic equality.
 >     q <- checkProof pf
 >     case q of
 >       JAll _ z p ->
->         if x == z
->           then if w == (x --> e) $> p
->             then return $ (x --> e) $> p
+>         if z == z
+>           then if w == (z --> e) $> p
+>             then return $ (z --> e) $> p
 >             else checkError $ MalformedElimU loc
->           else checkError $ AllVarMismatch loc x z
+>           else checkError $ AllVarMismatch loc x z w pf
 >       _ -> checkError $ AllExpected loc
 
 The universal introduction and elimination rules need to check their respective side conditions.

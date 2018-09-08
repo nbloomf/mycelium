@@ -43,6 +43,7 @@ The main program takes a list of filenames, parses them as modules, and checks t
 >       putStrLn $ "definitions: " ++ (show b)
 >       putStrLn $ "theorems:    " ++ (show c)
 >       putStrLn $ "types:       " ++ (show $ size types)
+>       printDot "graph.dot" $ getAllDeps ms
 >       return ()
 > 
 > readModule :: FilePath -> IO Module

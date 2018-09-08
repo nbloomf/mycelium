@@ -220,7 +220,7 @@ Deserialization of a fancy proof can fail in a few ways; we might have a referen
 >   | EmptyProof
 >   | EmptyChain
 >   | ChainMatchError
->   | ChainBadSub
+>   | ChainBadSub (Var Expr) (Sub Expr)
 >   deriving (Eq, Show)
 
 To deserialize, we construct the tree proof from the leaves to the root.
@@ -361,7 +361,9 @@ Abbreviating equation chains like this makes the reasoning much closer to the wa
 >           -> Either DeserializeError Expr
 >         matchVar w f e = case matchExpr f e of
 >           Nothing -> Left ChainMatchError
->           Just s -> let Just u = applySub w s in return u
+>           Just s -> case applySub w s of
+>             Just u -> return u
+>             Nothing -> Left $ ChainBadSub w s
 
 
 

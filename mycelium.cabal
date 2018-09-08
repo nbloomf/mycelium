@@ -26,6 +26,7 @@ library
       base >=4.7 && <5
 
     , containers >=0.5.11 && <1
+    , graphviz >=2999.20.0.0 && <3000
     , indents >=0.5.0.0 && <1
     , monad-loops >=0.4.3 && <1
     , parsec >=3.1.13.0 && <4
