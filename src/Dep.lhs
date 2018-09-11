@@ -26,7 +26,7 @@ title: Dependencies
 > proofDeps = \case
 >   Use _ n _ p -> n : concatMap proofDeps p
 >   Hyp _ _ _ -> []
->   Dis _ _ _ _ -> []
+>   Dis _ _ _ p -> proofDeps p
 >   ElimEq _ _ _ _ p1 p2 ->
 >     (RuleName "eq-elim") : concatMap proofDeps [p1,p2]
 >   IntroEq _ _ -> [RuleName "eq-intro"]
