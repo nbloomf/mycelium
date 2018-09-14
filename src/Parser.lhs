@@ -71,10 +71,10 @@ We'll also be tossing out lots of whitespace. But the `spaces` parser built into
 The next two are for wrapping a parser in parentheses or curly braces.
 
 > parens :: Parser a -> Parser a
-> parens p = between (char '(' >> spaceChars) (char ')' >> spaceChars) p
+> parens p = between (char '(' >> spaceOrNewlines) (char ')' >> spaceChars) p
 > 
 > braces :: Parser a -> Parser a
-> braces p = between (char '{' >> spaceChars) (char '}' >> spaceChars) p
+> braces p = between (char '{' >> spaceOrNewlines) (char '}' >> spaceChars) p
 
 We also want to test our parsers extensively. We can do this by hand with `testBasicParser` and `testFancyParser`.
 
@@ -622,6 +622,7 @@ The judgement grammar uses infix notation; we use parsec's built in `buildExpres
 >             (e,loc) <- try $ do
 >               e' <- parseBasic
 >               loc' <- getLoc
+>               spaceOrNewlines
 >               string "==" >> spaces
 >               return (e',loc')
 >             f <- parseBasic
@@ -1070,7 +1071,7 @@ Parsing fancy proof lines:
 >         string "chain" >> spaceChars
 >         newline
 >         ms <- many1 $ do
->           spaceChars >> string "==" >> spaceChars
+>           try (spaceOrNewlines >> string "==" >> spaceChars)
 >           e2 <- parseBasic
 >           spaceOrNewlines >> char ':' >> spaceChars
 >           flop <- option False (string "flop" >> spaceChars >> return True)
@@ -1105,7 +1106,7 @@ Parsing fancy proof lines:
 >       parseAtIn = option Nothing $ do
 >         try (string "at" >> spaceChars)
 >         w <- parseBasic
->         string "in" >> spaceChars
+>         string "in" >> spaceOrNewlines
 >         f <- parseBasic
 >         return $ Just (w,f)
 > 
@@ -1129,7 +1130,7 @@ Parsing fancy proofs:
 >     return $ FancyProof $ M.fromList fancy
 >     where
 >       parseLine = do
->         k <- read <$> many1 digit
+>         k <- try (spaceOrNewlines >> (read <$> many1 digit))
 >         spaceChars >> char '.' >> spaceChars
 >         l <- parseBasic
 >         return (k,l)
@@ -1293,6 +1294,12 @@ Errors
 >     , prettyBasic x ++ " does not match " ++ prettyBasic y
 >     , prettyBasic j
 >     , prettyBasic pf
+>     ]
+
+>   MalformedDischarge loc w v -> unlines
+>     [ "Malformed discharge:"
+>     , prettyBasic w
+>     , prettyBasic v
 >     ]
 
 >   err -> show err

@@ -496,7 +496,7 @@ We also have a rogues gallery of things that can go wrong with a proof.
 >   = HypAlreadyDefined HypName Jud
 >   | HypNotFound HypName
 >   | HypNotDischarged [HypName]
->   | MalformedDischarge Loc Jud
+>   | MalformedDischarge Loc Jud Jud
 >   | BadSubstitution (Sub Expr)
 >   | RuleNotFound RuleName
 >   | MalformedSubstitution Loc
@@ -593,7 +593,7 @@ Hypotheses are also valid evidence of themselves; but note that we add the name 
 >     p <- dischargeHyp name
 >     if w == (JImpl Q p q)
 >       then return (JImpl Q p q)
->       else checkError $ MalformedDischarge loc w
+>       else checkError $ MalformedDischarge loc w (JImpl Q p q)
 
 To check a discharge proof, we recursively check its child proof and look up and discharge the corresponding hypothesis before returning an implication judgement.
 
