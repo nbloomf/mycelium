@@ -71,6 +71,7 @@ There's one special case. A very common pattern is the _equational proof_; one w
 > 
 > data FancyProofLine
 >   = FancyUse Loc RuleName Jud [Int]
+>   | FancyInvoke Loc RuleName Jud [Int] (Sub Jud)
 >   | FancyHyp Loc HypName Jud
 >   | FancyDis Loc HypName Jud Int
 >   | FancyIntroEq Loc Jud
@@ -79,7 +80,6 @@ There's one special case. A very common pattern is the _equational proof_; one w
 >   | FancyElimU Loc Jud (Var Expr) Expr Int
 >   | FancyIntroE Loc Jud (Var Expr) Expr Int
 >   | FancyElimE Loc Jud (Var Expr) (Var Expr) Int Int
->   | FancySubst Loc Jud (Sub Expr) Int
 >   | FancyAssume Loc Int Jud
 >   | FancyChain Loc Expr [(Expr, Maybe (Var Expr, Expr), Bool, ChainRef)]
 >   deriving (Show)
@@ -96,6 +96,8 @@ For testing we'll need an `Eq` instance for `FancyProofLine` that ignores the `L
 >   l1 == l2 = case (l1,l2) of
 >     (FancyUse _ n1 q1 ps1, FancyUse _ n2 q2 ps2) ->
 >       (n1 == n2) && (q1 == q2) && (ps1 == ps2)
+>     (FancyInvoke _ n1 q1 ps1 t1, FancyInvoke _ n2 q2 ps2 t2) ->
+>       (n1 == n2) && (q1 == q2) && (ps1 == ps2) && (t1 == t2)
 >     (FancyHyp _ n1 q1, FancyHyp _ n2 q2) ->
 >       (n1 == n2) && (q1 == q2)
 >     (FancyDis _ n1 q1 p1, FancyDis _ n2 q2 p2) ->
@@ -112,8 +114,6 @@ For testing we'll need an `Eq` instance for `FancyProofLine` that ignores the `L
 >       (q1 == q2) && (x1 == x2) && (e1 == e2) && (p1 == p2)
 >     (FancyElimE _ q1 u1 x1 p1 h1, FancyElimE _ q2 u2 x2 p2 h2) ->
 >       (q1 == q2) && (u1 == u2) && (x1 == x2) && (p1 == p2) && (h1 == h2)
->     (FancySubst _ q1 s1 p1, FancySubst _ q2 s2 p2) ->
->       (q1 == q2) && (s1 == s2) && (p1 == p2)
 >     (FancyAssume _ n1 q1, FancyAssume _ n2 q2) ->
 >       (n1 == n2) && (q1 == q2)
 >     (FancyChain _ e1 w1, FancyChain _ e2 w2) ->
@@ -136,6 +136,8 @@ For funsies, here's an `Arbitrary` instance.
 >   arbitrary = oneof
 >     [ FancyUse <$> arbitrary <*> arbitrary <*> arbitrary
 >         <*> ((map abs) <$> arbitrary)
+>     , FancyInvoke <$> arbitrary <*> arbitrary <*> arbitrary
+>         <*> ((map abs) <$> arbitrary) <*> (return emptySub)
 >     , FancyHyp <$> arbitrary <*> arbitrary <*> arbitrary
 >     , FancyDis <$> arbitrary <*> arbitrary <*> arbitrary
 >         <*> (abs <$> arbitrary)
@@ -150,14 +152,14 @@ For funsies, here's an `Arbitrary` instance.
 >         <*> arbitrary <*> (abs <$> arbitrary)
 >     , FancyElimE <$> arbitrary <*> arbitrary <*> arbitrary
 >         <*> arbitrary <*> (abs <$> arbitrary) <*> (abs <$> arbitrary)
->     , FancySubst <$> arbitrary <*> arbitrary <*> arbitrary
->         <*> (abs <$> arbitrary)
 >     , FancyAssume <$> arbitrary <*> (abs <$> arbitrary) <*> arbitrary
 >     ]
 > 
 >   shrink = \case
 >     FancyUse loc name q ps ->
 >       [ FancyUse loc name q' ps | q' <- shrink q ]
+>     FancyInvoke loc name q ps t ->
+>       [ FancyInvoke loc name q' ps t | q' <- shrink q ]
 >     FancyHyp loc name q ->
 >       [ FancyHyp loc name q' | q' <- shrink q ]
 >     FancyDis loc name q p ->
@@ -184,10 +186,6 @@ For funsies, here's an `Arbitrary` instance.
 >           q' <- shrink q, w' <- shrink w ] ++
 >       [ FancyElimE loc q x w' pe pf | w' <- shrink w ] ++
 >       [ FancyElimE loc q' x w pe pf | q' <- shrink q ]
->     FancySubst loc q s p ->
->       [ FancySubst loc q' s' p | q' <- shrink q, s' <- shrink s ] ++
->       [ FancySubst loc q' s p | q' <- shrink q ] ++
->       [ FancySubst loc q s' p | s' <- shrink s ]
 >     FancyAssume loc t q ->
 >       [ FancyAssume loc t q' | q' <- shrink q ]
 >     FancyChain loc q ps ->
@@ -258,13 +256,13 @@ To deserialize, we construct the tree proof from the leaves to the root.
 >             pu <- deserializeBelowAt k u
 >             pv <- deserializeBelowAt k v
 >             return $ ElimE loc q x e pu pv
->           FancySubst loc q s u -> do
->             p <- deserializeBelowAt k u
->             return $ Subst loc q s p
 >           FancyAssume loc t q -> Right $ Assume loc t q
 >           FancyUse loc name q us -> do
 >             ps <- mapM (deserializeBelowAt k) us
 >             return $ Use loc name q ps
+>           FancyInvoke loc name q us t -> do
+>             ps <- mapM (deserializeBelowAt k) us
+>             return $ Invoke loc name q ps t
 >           FancyChain loc e ws ->
 >             deserializeChainAt k e (reverse ws)
 > 
@@ -386,6 +384,7 @@ We need a couple of utilities. First is `catFancyProof`, which concatenates two 
 >     bump :: Int -> FancyProofLine -> FancyProofLine
 >     bump k = \case
 >       FancyUse loc name q ps -> FancyUse loc name q (map (k+) ps)
+>       FancyInvoke loc name q ps t -> FancyInvoke loc name q (map (k+) ps) t
 >       FancyHyp loc name q -> FancyHyp loc name q
 >       FancyDis loc name q p -> FancyDis loc name q (k+p)
 >       FancyIntroEq loc w -> FancyIntroEq loc w
@@ -394,7 +393,6 @@ We need a couple of utilities. First is `catFancyProof`, which concatenates two 
 >       FancyElimU loc q x e p -> FancyElimU loc q x e (k+p)
 >       FancyIntroE loc q x e p -> FancyIntroE loc q x e (k+p)
 >       FancyElimE loc q x w u v -> FancyElimE loc q x w (k+u) (k+v)
->       FancySubst loc q s p -> FancySubst loc q s (k+p)
 >       FancyAssume loc t q -> FancyAssume loc t q
 >       FancyChain loc w qs -> FancyChain loc w (map (f k) qs)
 > 
@@ -438,11 +436,6 @@ We're now prepared to serialize proofs. The result is a _list_ of fancy proofs, 
 >       , append (catFancyProof mf me) $ FancyProof $ M.fromList
 >         [ (1, FancyElimEq loc w x q (ke+kf) kf) ]
 >       ]
->   Subst loc q s p -> do
->     m <- serialize p
->     let k = sizeOf m
->     [ append m $ FancyProof $ M.fromList
->       [ (1, FancySubst loc q s k) ] ]
 >   IntroU loc w x y p -> do
 >     m <- serialize p
 >     let k = sizeOf m
@@ -476,6 +469,14 @@ We're now prepared to serialize proofs. The result is a _list_ of fancy proofs, 
 >       (foldr catFancyProof (FancyProof mempty) ms)
 >         (FancyProof $ M.fromList
 >           [ (1, FancyUse loc name q (accum ks)) ]) ]
+>   Invoke loc name q ps t -> do
+>     ms <- mapM serialize ps
+>     let ks = map sizeOf ms
+>     let accum = map sum . tail . inits
+>     [ append
+>       (foldr catFancyProof (FancyProof mempty) ms)
+>         (FancyProof $ M.fromList
+>           [ (1, FancyInvoke loc name q (accum ks) t) ]) ]
 > 
 >   where
 >     append p@(FancyProof m1) (FancyProof m2) =

@@ -25,6 +25,7 @@ title: Dependencies
 > proofDeps :: Proof -> [RuleName]
 > proofDeps = \case
 >   Use _ n _ p -> n : concatMap proofDeps p
+>   Invoke _ n _ p _ -> n : concatMap proofDeps p
 >   Hyp _ _ _ -> []
 >   Dis _ _ _ p -> proofDeps p
 >   ElimEq _ _ _ _ p1 p2 ->
@@ -38,7 +39,6 @@ title: Dependencies
 >     (RuleName "exists-intro") : proofDeps p
 >   ElimE _ _ _ _ p1 p2 ->
 >     (RuleName "exists-elim") : concatMap proofDeps [p1,p2]
->   Subst _ _ _ p -> proofDeps p
 >   Assume _ _ _ -> []
 
 > toDep :: Claim -> Maybe Dep

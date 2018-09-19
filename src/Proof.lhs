@@ -54,6 +54,10 @@ We can make an `Arbitrary` instance for rules. The vast majority of rules it gen
 >     [ Rule q ps' | ps' <- shrink ps ] ++
 >     [ Rule q' ps | q' <- shrink q ]
 
+> captureJudSubRule :: Sub Jud -> Rule -> Rule
+> captureJudSubRule t (Rule q ps) =
+>   Rule (captureJudSub t q) (map (captureJudSub t) ps)
+
 The most important operation on rules is _matching_. Inference rules are _proof schemas_, representing many concrete proofs. A rule can be applied to a particular conclusion and list of premises if there is a substitution from the rule to the candidate judgements.
 
 > matchRule :: Rule -> Jud -> [Jud] -> Maybe (Sub Jud, Sub Expr)
@@ -179,6 +183,7 @@ A natural deduction style proof is essentially a labeled rose tree of judgements
 
 > data Proof
 >   = Use Loc RuleName Jud [Proof]
+>   | Invoke Loc RuleName Jud [Proof] (Sub Jud)
 
 We will eventually need to have introduction and elimination rules for each judgement constructor. But many of these can be expressed in essentially the same way that we would express a theorem at the user level. For instance, the introduction rule for $\wedge$. These are collectively handled by `Use`. Other rules will require special syntactic support, and these have to be built into the definition of proof. For example!
 
@@ -246,17 +251,6 @@ $$\begin{array}{c}
 
 with the side conditions that $u$ does not occur in $\exists x . \Phi$, in $\Psi$, or in any undischarged hypotheses or assumptions in the proof of $\Phi[x \mapsto u] \Rightarrow \Psi$.
 
->   | Subst Loc Jud (Sub Expr) Proof
-
-The `Subst`itution proof is a little different. Free variables in a proof denote a specific but arbitrary object. This is different from a variable bound by a forall, which denotes _every_ object of the appropriate type. As such, it makes sense to perform substitutions on the free variables. Schematically, that looks something like this:
-
-$$\begin{array}{c}
-\Phi[S] \\ \hline
-S \cdot \Phi
-\end{array}$$
-
-Again, [square brackets] indicate a metasyntactic substitution; $\Phi$ is a judgement with (maybe) some free variables, and $S \cdot \Phi$ is the result of applying some substitution to $\Phi$. Substitution is not really either an introduction or an elimination rule.
-
 >   | Assume Loc Int Jud
 >   deriving (Show)
 
@@ -293,10 +287,10 @@ For testing, we'll need an `Eq` instance for `Proof` that ignores `Loc` paramete
 >       (q1 == q2) && (x1 == x2) && (e1 == e2) && (p1 == p2)
 >     (ElimE _ q1 x1 y1 u1 v1, ElimE _ q2 x2 y2 u2 v2) ->
 >       (q1 == q2) && (x1 == x2) && (y1 == y2) && (u1 == u2) && (v1 == v2)
->     (Subst _ q1 s1 p1, Subst _ q2 s2 p2) ->
->       (q1 == q2) && (s1 == s2) && (p1 == p2)
 >     (Use _ n1 q1 p1, Use _ n2 q2 p2) ->
 >       (n1 == n2) && (q1 == q2) && (p1 == p2)
+>     (Invoke _ n1 q1 p1 t1, Invoke _ n2 q2 p2 t2) ->
+>       (n1 == n2) && (q1 == q2) && (p1 == p2) && (t1 == t2)
 >     _ -> False
 
 And here's an `Arbitrary` instance.
@@ -310,15 +304,13 @@ And here's an `Arbitrary` instance.
 >             , Hyp <$> arbitrary <*> arbitrary <*> arbitrary
 >             ]
 >         | otherwise = do
->             let recur = genDepth =<< elements [0..(k-1)]
+>             let recur = genDepth =<< elements [0..(div k 2)]
 >             oneof
 >               [ Dis <$> arbitrary <*> arbitrary <*> arbitrary
 >                   <*> recur
 >               , IntroEq <$> arbitrary <*> arbitrary
 >               , ElimEq <$> arbitrary <*> arbitrary <*> arbitrary
 >                   <*> arbitrary <*> recur <*> recur
->               , Subst <$> arbitrary <*> arbitrary <*> arbitrary
->                   <*> recur
 >               , IntroU <$> arbitrary <*> arbitrary <*> arbitrary
 >                   <*> arbitrary <*> recur
 >               , ElimU <$> arbitrary <*> arbitrary <*> arbitrary
@@ -329,6 +321,8 @@ And here's an `Arbitrary` instance.
 >                   <*> arbitrary <*> recur <*> recur
 >               , Use <$> arbitrary <*> arbitrary <*> arbitrary
 >                   <*> listOf recur
+>               , Invoke <$> arbitrary <*> arbitrary <*> arbitrary
+>                   <*> listOf recur <*> (return emptySub)
 >               ]
 > 
 >   shrink = \case
@@ -345,10 +339,6 @@ And here's an `Arbitrary` instance.
 >       [ p, q ] ++
 >       [ ElimEq loc u' x v' p' q' |
 >         u' <- shrink u, v' <- shrink v, p' <- shrink p, q' <- shrink q ]
->     Subst loc w s p ->
->       [ p ] ++
->       [ Subst loc w' s' p' |
->         w' <- shrink w, s' <- shrink s, p' <- shrink p ]
 >     IntroU loc q x y p ->
 >       [ p ] ++
 >       [ IntroU loc q' x y p' |
@@ -369,6 +359,10 @@ And here's an `Arbitrary` instance.
 >       ps ++
 >       [ Use loc name p' ps' |
 >         p' <- shrink p, ps' <- shrink ps ]
+>     Invoke loc name p ps t ->
+>       ps ++
+>       [ Invoke loc name p' ps' t' |
+>         p' <- shrink p, ps' <- shrink ps, t' <- shrink t ]
 
 
 
@@ -501,6 +495,7 @@ We also have a rogues gallery of things that can go wrong with a proof.
 >   | RuleNotFound RuleName
 >   | MalformedSubstitution Loc
 >   | RuleDoesNotMatch Loc RuleName Rule [Jud]
+>   | InvokeDoesNotMatch Loc RuleName Rule Rule [Jud]
 >   | ReusedAssumptions (S.Set Int)
 >   | ProofDoesNotMatch Rule Jud [Jud]
 >   | RuleAlreadyDefined RuleName
@@ -618,14 +613,6 @@ To check a discharge proof, we recursively check its child proof and look up and
 
 The equality elimination and introduction rules need to ensure we've given proofs of the correct form.
 
->   Subst loc w s pf -> do
->     q <- checkProof pf
->     if w == s $> q
->       then return (s $> q)
->       else checkError $ MalformedSubstitution loc
-
-The substitution proof just checks syntactic equality.
-
 >   IntroU loc w x y pf -> do
 >     q <- unusedInHyp loc x $ checkProof pf
 >     if S.member y (freeExprVars q)
@@ -673,6 +660,7 @@ The universal introduction and elimination rules need to check their respective 
 >                 else checkError $ MalformedElimE loc
 >             else checkError $ MalformedElimE loc
 >           else checkError $ SomeVarMismatch loc
+>       _ -> checkError $ MalformedElimE loc
 
 The existential introduction and elimination rules need to check their respective side conditions.
 
@@ -681,6 +669,13 @@ The existential introduction and elimination rules need to check their respectiv
 >     r <- lookupRule name
 >     case matchRule r c hs of
 >       Nothing -> checkError $ RuleDoesNotMatch loc name r (c:hs)
+>       Just _ -> return c
+
+>   Invoke loc name c ps t -> do
+>     hs <- mapM checkProof ps
+>     r <- lookupRule name
+>     case matchRule (captureJudSubRule t r) c hs of
+>       Nothing -> checkError $ InvokeDoesNotMatch loc name r (captureJudSubRule t r) (c:hs)
 >       Just _ -> return c
 
 Finally we have `Use`; these proofs are checked by recursively checking the child proofs and then verifying that the named rule matches.
@@ -735,10 +730,6 @@ We can also type check proofs.
 >     , checkTypes pe
 >     , checkTypes pf
 >     ] env
->   Subst _ w s pf -> concatM
->     [ typeCheck w
->     , checkTypes pf
->     ] env
 >   IntroU _ w x y pf -> concatM
 >     [ typeCheck w
 >     , checkTypes pf
@@ -758,6 +749,9 @@ We can also type check proofs.
 >     ] env
 >   Use _ n q pfs -> concatM
 >     ( typeCheck q : map checkTypes pfs ) env
+>   Invoke _ n q pfs s -> concatM
+>     ( typeCheck q : map checkTypes pfs ) env
+
 
 We just need a utility for lifting inference errors to verification errors.
 

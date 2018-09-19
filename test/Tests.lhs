@@ -215,11 +215,11 @@ And for the monoid action properties of `SubExpr`.
 > _SubExpr_properties args name p = do
 >   putStrLn $ ">>>>> SubExpr properties: " ++ name
 > 
->   putStrLn "====> Identity law for Sub Expr action on Expr"
+>   putStrLn "====> Identity law for Sub Expr action"
 >   testWith args $
 >     test_subexpr_identity p
 > 
->   putStrLn "====> Associativity law for Sub Expr action on Expr"
+>   putStrLn "====> Associativity law for Sub Expr action"
 >   testWith args $
 >     test_subexpr_action p
 
@@ -298,10 +298,10 @@ We bundle the properties of `SubMono` for reuse.
 > _SubMono_properties args name p = do
 >   putStrLn $ ">>>>> SubMono properties: " ++ name
 > 
->   putStrLn "====> Identity law for SubMono on MonoType"
+>   putStrLn "====> Identity law for SubMono action"
 >   testWith args $ test_submono_identity p
 > 
->   putStrLn "====> Action law for SubMono on MonoType"
+>   putStrLn "====> Associativity law for SubMono action"
 >   testWith args $ test_submono_action p
 
 And properties of `UnifyTypes`:

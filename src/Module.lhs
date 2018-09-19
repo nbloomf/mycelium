@@ -91,9 +91,9 @@ In our notation, the and-introduction rule looks like this.
 > ax_and_intro = Axiom InferenceRule
 >   (RuleName "and-intro") $
 >   Rule
->     (JConj Q (JVar Q (Var "p")) (JVar Q (Var "q")))
->     [ JVar Q (Var "p")
->     , JVar Q (Var "q")
+>     (JConj Q (JVar Q (Var "p") emptySub) (JVar Q (Var "q") emptySub))
+>     [ JVar Q (Var "p") emptySub
+>     , JVar Q (Var "q") emptySub
 >     ]
 
 This rule governs when the $\wedge$ symbol can be introduced. There are analogous _and-elimination rules_ for removing a $\wedge$:
@@ -110,16 +110,16 @@ $$\begin{array}{c}
 > ax_and_elim_1 = Axiom InferenceRule
 >   (RuleName "and-elim-1") $
 >   Rule
->     (JVar Q (Var "p"))
->     [ JConj Q (JVar Q (Var "p")) (JVar Q (Var "q"))
+>     (JVar Q (Var "p") emptySub)
+>     [ JConj Q (JVar Q (Var "p") emptySub) (JVar Q (Var "q") emptySub)
 >     ]
 > 
 > ax_and_elim_2 :: Claim
 > ax_and_elim_2 = Axiom InferenceRule
 >   (RuleName "and-elim-2") $
 >   Rule
->     (JVar Q (Var "q"))
->     [ JConj Q (JVar Q (Var "p")) (JVar Q (Var "q"))
+>     (JVar Q (Var "q") emptySub)
+>     [ JConj Q (JVar Q (Var "p") emptySub) (JVar Q (Var "q") emptySub)
 >     ]
 
 And from these we can already prove a theorem:
@@ -140,16 +140,16 @@ $$\begin{array}{ccc}
 > thm_and_comm = Theorem
 >   (RuleName "and-comm")
 >   (Rule
->     (JConj Q (JVar Q (Var "q")) (JVar Q (Var "p")))
->     [JConj Q (JVar Q (Var "p")) (JVar Q (Var "q"))
+>     (JConj Q (JVar Q (Var "q") emptySub) (JVar Q (Var "p") emptySub))
+>     [JConj Q (JVar Q (Var "p") emptySub) (JVar Q (Var "q") emptySub)
 >     ])
 >   (Use Q (RuleName "and-intro")
->       (JConj Q (JVar Q (Var "q")) (JVar Q (Var "p")))
->     [ Use Q (RuleName "and-elim-2") (JVar Q (Var "q"))
->       [ Assume Q 1 (JConj Q (JVar Q (Var "p")) (JVar Q (Var "q")))
+>       (JConj Q (JVar Q (Var "q") emptySub) (JVar Q (Var "p") emptySub))
+>     [ Use Q (RuleName "and-elim-2") (JVar Q (Var "q") emptySub)
+>       [ Assume Q 1 (JConj Q (JVar Q (Var "p") emptySub) (JVar Q (Var "q") emptySub))
 >       ]
->     , Use Q (RuleName "and-elim-1") (JVar Q (Var "p"))
->       [ Assume Q 1 (JConj Q (JVar Q (Var "p")) (JVar Q (Var "q")))
+>     , Use Q (RuleName "and-elim-1") (JVar Q (Var "p") emptySub)
+>       [ Assume Q 1 (JConj Q (JVar Q (Var "p") emptySub) (JVar Q (Var "q") emptySub))
 >       ]
 >     ])
 
@@ -166,9 +166,9 @@ $$\begin{array}{c}
 > ax_modus_ponens = Axiom InferenceRule
 >   (RuleName "modus-ponens") $
 >   Rule
->     (JVar Q (Var "q"))
->     [ JVar Q (Var "p")
->     , JImpl Q (JVar Q (Var "p")) (JVar Q (Var "q"))
+>     (JVar Q (Var "q") emptySub)
+>     [ JVar Q (Var "p") emptySub
+>     , JImpl Q (JVar Q (Var "p") emptySub) (JVar Q (Var "q") emptySub)
 >     ]
 
 We can now show that $\Rightarrow$ is transitive.
@@ -177,21 +177,21 @@ We can now show that $\Rightarrow$ is transitive.
 > thm_imp_trans = Theorem
 >   (RuleName "imp-trans")
 >   (Rule
->     ( JImpl Q (JVar Q (Var "p")) (JVar Q (Var "r")) )
->     [ JImpl Q (JVar Q (Var "p")) (JVar Q (Var "q"))
->     , JImpl Q (JVar Q (Var "q")) (JVar Q (Var "r"))
+>     ( JImpl Q (JVar Q (Var "p") emptySub) (JVar Q (Var "r") emptySub) )
+>     [ JImpl Q (JVar Q (Var "p") emptySub) (JVar Q (Var "q") emptySub)
+>     , JImpl Q (JVar Q (Var "q") emptySub) (JVar Q (Var "r") emptySub)
 >     ])
 >   (Dis Q (HypName "assume-p")
->       (JImpl Q (JVar Q (Var "p")) (JVar Q (Var "r"))) $
+>       (JImpl Q (JVar Q (Var "p") emptySub) (JVar Q (Var "r") emptySub)) $
 >     Use Q (RuleName "modus-ponens")
->     (JVar Q (Var "r"))
+>     (JVar Q (Var "r") emptySub)
 >     [ Use Q (RuleName "modus-ponens")
->       (JVar Q (Var "q"))
+>       (JVar Q (Var "q") emptySub)
 >       [ Hyp Q (HypName "assume-p")
->         (JVar Q (Var "p"))
->       , Assume Q 1 (JImpl Q (JVar Q (Var "p")) (JVar Q (Var "q")))
+>         (JVar Q (Var "p") emptySub)
+>       , Assume Q 1 (JImpl Q (JVar Q (Var "p") emptySub) (JVar Q (Var "q") emptySub))
 >       ]
->     , Assume Q 2 (JImpl Q (JVar Q (Var "q")) (JVar Q (Var "r")))])
+>     , Assume Q 2 (JImpl Q (JVar Q (Var "q") emptySub) (JVar Q (Var "r") emptySub))])
 
 Next we'll test substitution proofs. We need an introduction rule for equality:
 

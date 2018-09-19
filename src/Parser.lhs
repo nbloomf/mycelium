@@ -121,7 +121,7 @@ Expression variables start with a lowercase latin character, followed by 0 or mo
 >   prettyBasic (Var s) = s
 > 
 >   parseBasic = do
->     a <- oneOf _latin_lc
+>     a <- oneOf (_latin_lc ++ "_")
 >     as <- many $ oneOf _latin
 >     bs <- many $ oneOf _digit
 >     spaceChars
@@ -514,6 +514,24 @@ Test cases:
 >       (Right $ Sub $ M.fromList [])
 >   ]
 
+> instance PrettyBasic (Sub Jud) where
+>   prettyBasic (Sub m) =
+>     "[" ++ (intercalate "; " $ map f $ M.toList m) ++ "]"
+>     where
+>       f (x,e) = prettyBasic x ++ " :-> " ++ prettyBasic e
+> 
+>   parseBasic = do
+>     try (char '[' >> spaceChars)
+>     as <- sepBy parseSub (char ';' >> spaceChars)
+>     char ']' >> spaceChars
+>     return $ Sub $ M.fromList as
+>     where
+>       parseSub = do
+>         x <- parseBasic
+>         string ":->" >> spaceChars
+>         e <- parseBasic
+>         return (x,e)
+
 
 
 Judgements
@@ -549,7 +567,9 @@ The judgement grammar uses infix notation; we use parsec's built in `buildExpres
 
 > instance PrettyBasic Jud where
 >   prettyBasic = \case
->     JVar _ x -> prettyBasic x
+>     JVar _ x s -> if s == emptySub
+>       then prettyBasic x
+>       else prettyBasic x ++ prettyBasic s
 >     JNeg _ p -> '~' : prettyBasicWrap p
 >     JConj _ p q -> concat
 >       [ prettyBasicWrap p, " /\\ ", prettyBasicWrap q ]
@@ -616,7 +636,8 @@ The judgement grammar uses infix notation; we use parsec's built in `buildExpres
 >           parseVar = do
 >             loc <- getLoc
 >             x <- try parseBasic
->             return (JVar loc x)
+>             t <- option emptySub parseBasic
+>             return (JVar loc x t)
 > 
 >           parseEq = do
 >             (e,loc) <- try $ do
@@ -644,13 +665,13 @@ Test cases:
 > test_cases_parse_jud :: Bool
 > test_cases_parse_jud = and
 >   [ testBasicParser (Proxy :: Proxy Jud)
->       "P" (Right $ JVar Q (Var "P"))
+>       "P" (Right $ JVar Q (Var "P") emptySub)
 >   , testBasicParser (Proxy :: Proxy Jud)
->       "P /\\ Q" (Right $ JConj Q (JVar Q (Var "P")) (JVar Q (Var "Q")))
+>       "P /\\ Q" (Right $ JConj Q (JVar Q (Var "P") emptySub) (JVar Q (Var "Q") emptySub))
 >   , testBasicParser (Proxy :: Proxy Jud)
->       "P \\/ Q" (Right $ JDisj Q (JVar Q (Var "P")) (JVar Q (Var "Q")))
+>       "P \\/ Q" (Right $ JDisj Q (JVar Q (Var "P") emptySub) (JVar Q (Var "Q") emptySub))
 >   , testBasicParser (Proxy :: Proxy Jud)
->       "P => Q" (Right $ JImpl Q (JVar Q (Var "P")) (JVar Q (Var "Q")))
+>       "P => Q" (Right $ JImpl Q (JVar Q (Var "P") emptySub) (JVar Q (Var "Q") emptySub))
 >   , testBasicParser (Proxy :: Proxy Jud)
 >       "x == y" (Right $ JEq Q (EVar Q (Var "x")) (EVar Q (Var "y")))
 >   ]
@@ -728,7 +749,7 @@ Test case:
 >         [ "* P"
 >         , "  * Q"
 >         ])
->       (Right $ Rule (JVar Q (Var "P")) [JVar Q (Var "Q")])
+>       (Right $ Rule (JVar Q (Var "P") emptySub) [JVar Q (Var "Q") emptySub])
 >   ]
 
 And fancy style:
@@ -763,7 +784,7 @@ Test case:
 >         , "then"
 >         , "  * P"
 >         ])
->       (Right $ Rule (JVar Q (Var "P")) [JVar Q (Var "Q")])
+>       (Right $ Rule (JVar Q (Var "P") emptySub) [JVar Q (Var "Q") emptySub])
 >   ]
 
 
@@ -780,11 +801,11 @@ Proofs can also be written in either basic or fancy style.
 >   try (string "discharge") <|>
 >   try (string "eq-elim") <|>
 >   try (string "eq-intro") <|>
->   try (string "sub") <|>
 >   try (string "forall-intro") <|>
 >   try (string "forall-elim") <|>
 >   try (string "exists-intro") <|>
 >   try (string "exists-elim") <|>
+>   try (string "invoke") <|>
 >   (string "use")
 
 Basic style:
@@ -811,10 +832,6 @@ Basic style:
 >             ++ pretty (i+1) pe ++ pretty (i+1) pf
 >         IntroEq _ q -> concat
 >           [ ind i, "* ", prettyBasic q, " : eq-intro\n" ]
->         Subst _ w s pf -> concat
->           [ ind i, "* ", prettyBasic w, " : sub "
->           , prettyBasic s, "\n" ]
->             ++ pretty (i+1) pf
 >         IntroU _ w x y pf -> concat
 >           [ ind i, "* ", prettyBasic w, " : forall-intro "
 >           , prettyBasic x, " -> ", prettyBasic y, "\n" ]
@@ -834,6 +851,10 @@ Basic style:
 >         Use _ name q pfs -> concat
 >           [ ind i, "* ", prettyBasic q, " : use "
 >           , prettyBasic name, "\n" ]
+>             ++ (concatMap (pretty (i+1)) pfs)
+>         Invoke _ name q pfs t -> concat
+>           [ ind i, "* ", prettyBasic q, " : invoke "
+>           , prettyBasic name, " ", prettyBasic t, "\n" ]
 >             ++ (concatMap (pretty (i+1)) pfs)
 > 
 >   parseBasic = p 0
@@ -876,12 +897,6 @@ Basic style:
 >             pf <- p (i+1)
 >             return (ElimEq loc q x w pe pf)
 > 
->           "sub" -> do
->             s <- parseBasic
->             newline
->             pf <- p (i+1)
->             return (Subst loc q s pf)
-> 
 >           "forall-intro" -> do
 >             x <- parseBasic
 >             string "->" >> spaceChars
@@ -921,6 +936,13 @@ Basic style:
 >             pfs <- many $ try $ p (i+1)
 >             return (Use loc n q pfs)
 > 
+>           "invoke" -> do
+>             n <- parseBasic
+>             t <- parseBasic
+>             newline
+>             pfs <- many $ try $ p (i+1)
+>             return (Invoke loc n q pfs t)
+> 
 >           x -> unexpected x
 
 Parsing fancy proof lines:
@@ -942,10 +964,6 @@ Parsing fancy proof lines:
 >       [ prettyBasic w, " : eq-elim "
 >       , prettyBasic x, " ", prettyBasic q, "; "
 >       , show u, ", ", show v, "\n" ]
->     FancySubst _ w s u -> concat
->       [ prettyBasic w, " : sub "
->       , prettyBasic s, "; "
->       , show u, "\n" ]
 >     FancyIntroU _ w x y u -> concat
 >       [ prettyBasic w, " : forall-intro "
 >       , prettyBasic x, " -> ", prettyBasic y, "; "
@@ -965,6 +983,10 @@ Parsing fancy proof lines:
 >     FancyUse _ name w us -> concat
 >       [ prettyBasic w, " : use "
 >       , prettyBasic name, "; "
+>       , intercalate ", " $ map show us, "\n" ]
+>     FancyInvoke _ name w us t -> concat
+>       [ prettyBasic w, " : invoke "
+>       , prettyBasic name, " ", prettyBasic t, "; "
 >       , intercalate ", " $ map show us, "\n" ]
 > 
 >   parseBasic = parseLine <|> parseChain
@@ -1008,13 +1030,6 @@ Parsing fancy proof lines:
 >             v <- read <$> many1 digit
 >             newline
 >             return $ FancyElimEq loc w x e u v
-> 
->           "sub" -> do
->             s <- parseBasic
->             char ';' >> spaceChars
->             u <- read <$> many1 digit
->             newline
->             return $ FancySubst loc w s u
 > 
 >           "forall-intro" -> do
 >             x <- parseBasic
@@ -1060,6 +1075,14 @@ Parsing fancy proof lines:
 >             us <- (map read) <$> (sepBy (many1 digit) (char ',' >> spaceChars))
 >             newline
 >             return $ FancyUse loc n w us
+> 
+>           "invoke" -> do
+>             n <- parseBasic
+>             t <- parseBasic
+>             spaceChars >> char ';' >> spaceChars
+>             us <- (map read) <$> (sepBy (many1 digit) (char ',' >> spaceChars))
+>             newline
+>             return $ FancyInvoke loc n w us t
 > 
 >           x -> unexpected x
 > 
@@ -1281,6 +1304,12 @@ Errors
 >     [ "At " ++ show loc
 >     , "Rule '" ++ (prettyBasic n) ++ "' does not match."
 >     , prettyBasic r ]
+>       ++ map prettyBasic qs
+
+>   InvokeDoesNotMatch loc n r s qs -> unlines $
+>     [ "At " ++ show loc
+>     , "Rule '" ++ (prettyBasic n) ++ "' does not match."
+>     , prettyBasic r, prettyBasic s ]
 >       ++ map prettyBasic qs
 
 >   ProofDoesNotMatch r q qs -> unlines $

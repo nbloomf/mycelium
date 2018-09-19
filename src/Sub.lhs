@@ -228,6 +228,15 @@ Finally, the support of an extension is the union of supports. Compare this to t
 > test_sub_extend_support _ s1 s2 =
 >   support (s1 .& s2) == S.union (support s1) (support s2)
 
+> swapSupport :: (Eq t) => (Var t, Var t) -> Sub t -> Sub t
+> swapSupport (u,v) s =
+>   case (applySub u s, applySub v s) of
+>     (Nothing, Nothing) -> s
+>     (Just eu, Nothing) -> (s </ (S.fromList [u])) .& (v --> eu)
+>     (Nothing, Just ev) -> (s </ (S.fromList [v])) .& (u --> ev)
+>     (Just eu, Just ev) ->
+>       (s </ (S.fromList [u,v])) .& (u --> ev) .& (v --> eu)
+
 
 
 Restriction
