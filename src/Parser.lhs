@@ -598,12 +598,12 @@ The judgement grammar uses infix notation; we use parsec's built in `buildExpres
 > 
 >         , [ Infix (do
 >             { loc <- getLoc
->             ; string "/\\" >> spaceChars >> return (JConj loc)
+>             ; string "/\\" >> spaceOrNewlines >> return (JConj loc)
 >             }) AssocNone ]
 > 
 >         , [ Infix (do
 >             { loc <- getLoc
->             ; string "\\/" >> spaceChars >> return (JDisj loc)
+>             ; string "\\/" >> spaceOrNewlines >> return (JDisj loc)
 >             }) AssocNone ]
 > 
 >         , [ Infix (do
@@ -1078,6 +1078,7 @@ Parsing fancy proof lines:
 > 
 >           "invoke" -> do
 >             n <- parseBasic
+>             spaceOrNewlines
 >             t <- parseBasic
 >             spaceChars >> char ';' >> spaceChars
 >             us <- (map read) <$> (sepBy (many1 digit) (char ',' >> spaceChars))
