@@ -113,23 +113,27 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="cb4-9" data-line-number="9">      putStrLn <span class="fu">$</span> prettyError err</a>
 <a class="sourceLine" id="cb4-10" data-line-number="10">      exitFailure</a>
 <a class="sourceLine" id="cb4-11" data-line-number="11">    <span class="dt">Right</span> (<span class="dt">TypeEnv</span> types, <span class="dt">RuleEnv</span> rules) <span class="ot">-&gt;</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb4-12" data-line-number="12">      putStrLn <span class="fu">$</span> <span class="st">&quot;rules: &quot;</span> <span class="fu">++</span> (show <span class="fu">$</span> size rules)</a>
-<a class="sourceLine" id="cb4-13" data-line-number="13">      putStrLn <span class="fu">$</span> <span class="st">&quot;types: &quot;</span> <span class="fu">++</span> (show <span class="fu">$</span> size types)</a>
-<a class="sourceLine" id="cb4-14" data-line-number="14">      return ()</a>
-<a class="sourceLine" id="cb4-15" data-line-number="15"></a>
-<a class="sourceLine" id="cb4-16" data-line-number="16"><span class="ot">readModule ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">IO</span> <span class="dt">Module</span></a>
-<a class="sourceLine" id="cb4-17" data-line-number="17">readModule path <span class="fu">=</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb4-18" data-line-number="18">  contents <span class="ot">&lt;-</span> processLiterate <span class="fu">&lt;$&gt;</span> readFile path</a>
-<a class="sourceLine" id="cb4-19" data-line-number="19">  <span class="kw">case</span> contents <span class="kw">of</span></a>
-<a class="sourceLine" id="cb4-20" data-line-number="20">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb4-21" data-line-number="21">      putStrLn <span class="st">&quot;Malformed module.&quot;</span></a>
-<a class="sourceLine" id="cb4-22" data-line-number="22">      exitFailure</a>
-<a class="sourceLine" id="cb4-23" data-line-number="23">    <span class="dt">Just</span> m <span class="ot">-&gt;</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb4-24" data-line-number="24">      <span class="kw">case</span> runParser parseBasic () path m <span class="kw">of</span></a>
-<a class="sourceLine" id="cb4-25" data-line-number="25">        <span class="dt">Left</span> err <span class="ot">-&gt;</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb4-26" data-line-number="26">          putStrLn <span class="fu">$</span> show err</a>
-<a class="sourceLine" id="cb4-27" data-line-number="27">          exitFailure</a>
-<a class="sourceLine" id="cb4-28" data-line-number="28">        <span class="dt">Right</span> m <span class="ot">-&gt;</span> return m</a></code></pre></div>
+<a class="sourceLine" id="cb4-12" data-line-number="12">      <span class="kw">let</span> (a,b,c) <span class="fu">=</span> summarizeDeps <span class="fu">$</span> getAllDeps ms</a>
+<a class="sourceLine" id="cb4-13" data-line-number="13">      putStrLn <span class="fu">$</span> <span class="st">&quot;rules:       &quot;</span> <span class="fu">++</span> (show a)</a>
+<a class="sourceLine" id="cb4-14" data-line-number="14">      putStrLn <span class="fu">$</span> <span class="st">&quot;definitions: &quot;</span> <span class="fu">++</span> (show b)</a>
+<a class="sourceLine" id="cb4-15" data-line-number="15">      putStrLn <span class="fu">$</span> <span class="st">&quot;theorems:    &quot;</span> <span class="fu">++</span> (show c)</a>
+<a class="sourceLine" id="cb4-16" data-line-number="16">      putStrLn <span class="fu">$</span> <span class="st">&quot;types:       &quot;</span> <span class="fu">++</span> (show <span class="fu">$</span> size types)</a>
+<a class="sourceLine" id="cb4-17" data-line-number="17">      printDot <span class="st">&quot;graph.dot&quot;</span> <span class="fu">$</span> getAllDeps ms</a>
+<a class="sourceLine" id="cb4-18" data-line-number="18">      return ()</a>
+<a class="sourceLine" id="cb4-19" data-line-number="19"></a>
+<a class="sourceLine" id="cb4-20" data-line-number="20"><span class="ot">readModule ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">IO</span> <span class="dt">Module</span></a>
+<a class="sourceLine" id="cb4-21" data-line-number="21">readModule path <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb4-22" data-line-number="22">  contents <span class="ot">&lt;-</span> processLiterate <span class="fu">&lt;$&gt;</span> readFile path</a>
+<a class="sourceLine" id="cb4-23" data-line-number="23">  <span class="kw">case</span> contents <span class="kw">of</span></a>
+<a class="sourceLine" id="cb4-24" data-line-number="24">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb4-25" data-line-number="25">      putStrLn <span class="st">&quot;Malformed module.&quot;</span></a>
+<a class="sourceLine" id="cb4-26" data-line-number="26">      exitFailure</a>
+<a class="sourceLine" id="cb4-27" data-line-number="27">    <span class="dt">Just</span> m <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb4-28" data-line-number="28">      <span class="kw">case</span> runParser parseBasic () path m <span class="kw">of</span></a>
+<a class="sourceLine" id="cb4-29" data-line-number="29">        <span class="dt">Left</span> err <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb4-30" data-line-number="30">          putStrLn <span class="fu">$</span> show err</a>
+<a class="sourceLine" id="cb4-31" data-line-number="31">          exitFailure</a>
+<a class="sourceLine" id="cb4-32" data-line-number="32">        <span class="dt">Right</span> m <span class="ot">-&gt;</span> return m</a></code></pre></div>
 <p><code>processLiterate</code> pulls out only the lines we want.</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="ot">processLiterate ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> <span class="dt">String</span></a>
 <a class="sourceLine" id="cb5-2" data-line-number="2">processLiterate x <span class="fu">=</span> </a>

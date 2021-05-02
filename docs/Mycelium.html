@@ -116,11 +116,13 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <li><a href="./Module.html">Modules</a></li>
 <li><a href="./Fancy.html">Fancy Proofs</a></li>
 <li><a href="./Parser.html">Parsing</a></li>
+<li><a href="./Deps.html">Dependencies</a></li>
 </ul></li>
 <li>Appendices
 <ul>
 <li><a href="./Main.html">Main</a></li>
 <li><a href="./Tests.html">Tests</a></li>
+<li><a href="./Dep.html">Dependency Visualization</a></li>
 </ul></li>
 </ul>
 <h2 id="pragmatics">Pragmatics</h2>
@@ -136,18 +138,20 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="cb1-9" data-line-number="9">  , <span class="kw">module</span> <span class="dt">Module</span></a>
 <a class="sourceLine" id="cb1-10" data-line-number="10">  , <span class="kw">module</span> <span class="dt">Fancy</span></a>
 <a class="sourceLine" id="cb1-11" data-line-number="11">  , <span class="kw">module</span> <span class="dt">Parser</span></a>
-<a class="sourceLine" id="cb1-12" data-line-number="12">) <span class="kw">where</span></a>
-<a class="sourceLine" id="cb1-13" data-line-number="13"></a>
-<a class="sourceLine" id="cb1-14" data-line-number="14"><span class="kw">import</span> <span class="dt">Var</span></a>
-<a class="sourceLine" id="cb1-15" data-line-number="15"><span class="kw">import</span> <span class="dt">Sub</span></a>
-<a class="sourceLine" id="cb1-16" data-line-number="16"><span class="kw">import</span> <span class="dt">Expr</span></a>
-<a class="sourceLine" id="cb1-17" data-line-number="17"><span class="kw">import</span> <span class="dt">Type</span></a>
-<a class="sourceLine" id="cb1-18" data-line-number="18"><span class="kw">import</span> <span class="dt">Infer</span></a>
-<a class="sourceLine" id="cb1-19" data-line-number="19"><span class="kw">import</span> <span class="dt">Jud</span></a>
-<a class="sourceLine" id="cb1-20" data-line-number="20"><span class="kw">import</span> <span class="dt">Proof</span></a>
-<a class="sourceLine" id="cb1-21" data-line-number="21"><span class="kw">import</span> <span class="dt">Module</span></a>
-<a class="sourceLine" id="cb1-22" data-line-number="22"><span class="kw">import</span> <span class="dt">Fancy</span></a>
-<a class="sourceLine" id="cb1-23" data-line-number="23"><span class="kw">import</span> <span class="dt">Parser</span></a></code></pre></div>
+<a class="sourceLine" id="cb1-12" data-line-number="12">  , <span class="kw">module</span> <span class="dt">Dep</span></a>
+<a class="sourceLine" id="cb1-13" data-line-number="13">) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb1-14" data-line-number="14"></a>
+<a class="sourceLine" id="cb1-15" data-line-number="15"><span class="kw">import</span> <span class="dt">Var</span></a>
+<a class="sourceLine" id="cb1-16" data-line-number="16"><span class="kw">import</span> <span class="dt">Sub</span></a>
+<a class="sourceLine" id="cb1-17" data-line-number="17"><span class="kw">import</span> <span class="dt">Expr</span></a>
+<a class="sourceLine" id="cb1-18" data-line-number="18"><span class="kw">import</span> <span class="dt">Type</span></a>
+<a class="sourceLine" id="cb1-19" data-line-number="19"><span class="kw">import</span> <span class="dt">Infer</span></a>
+<a class="sourceLine" id="cb1-20" data-line-number="20"><span class="kw">import</span> <span class="dt">Jud</span></a>
+<a class="sourceLine" id="cb1-21" data-line-number="21"><span class="kw">import</span> <span class="dt">Proof</span></a>
+<a class="sourceLine" id="cb1-22" data-line-number="22"><span class="kw">import</span> <span class="dt">Module</span></a>
+<a class="sourceLine" id="cb1-23" data-line-number="23"><span class="kw">import</span> <span class="dt">Fancy</span></a>
+<a class="sourceLine" id="cb1-24" data-line-number="24"><span class="kw">import</span> <span class="dt">Parser</span></a>
+<a class="sourceLine" id="cb1-25" data-line-number="25"><span class="kw">import</span> <span class="dt">Dep</span></a></code></pre></div>
 <h2 id="acknowledgements">Acknowledgements</h2>
 <p>Portions of the HM implementation code are adapted from David Luposchainsky’s <a href="https://github.com/quchen/articles/tree/master/hindley-milner">tutorial</a>, which really helped me understand what was going on as I read <a href="http://prl.ccs.neu.edu/img/d-thesis-1984.pdf">Damas’ thesis</a> and <a href="https://web.cs.wpi.edu/~cs4536/c12/milner-damas_principal_types.pdf">Damas and Milner’s paper</a> on type inference.</p>
 </body>

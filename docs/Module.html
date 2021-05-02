@@ -105,7 +105,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <h2 id="modules">Modules</h2>
 <p>In practice, type definitions, axioms, and theorems will be stored together in text files. We can abstract this idea, multiple claims stored together, as a <em>module</em>.</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="kw">data</span> <span class="dt">Module</span></a>
-<a class="sourceLine" id="cb2-2" data-line-number="2">  <span class="fu">=</span> <span class="dt">Module</span> <span class="dt">ModuleName</span> [<span class="dt">Claim</span>]</a>
+<a class="sourceLine" id="cb2-2" data-line-number="2">  <span class="fu">=</span> <span class="dt">Module</span> <span class="dt">ModuleName</span> [(<span class="dt">Loc</span>, <span class="dt">Claim</span>)]</a>
 <a class="sourceLine" id="cb2-3" data-line-number="3">  <span class="kw">deriving</span> (<span class="dt">Show</span>)</a>
 <a class="sourceLine" id="cb2-4" data-line-number="4"></a>
 <a class="sourceLine" id="cb2-5" data-line-number="5"><span class="kw">instance</span> <span class="dt">Eq</span> <span class="dt">Module</span> <span class="kw">where</span></a>
@@ -148,12 +148,12 @@ P &amp;            &amp; Q \\ \hline
 \end{array}\]</span></p>
 <p>In our notation, the and-introduction rule looks like this.</p>
 <div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1"><span class="ot">ax_and_intro ::</span> <span class="dt">Claim</span></a>
-<a class="sourceLine" id="cb6-2" data-line-number="2">ax_and_intro <span class="fu">=</span> <span class="dt">Axiom</span></a>
+<a class="sourceLine" id="cb6-2" data-line-number="2">ax_and_intro <span class="fu">=</span> <span class="dt">Axiom</span> <span class="dt">InferenceRule</span></a>
 <a class="sourceLine" id="cb6-3" data-line-number="3">  (<span class="dt">RuleName</span> <span class="st">&quot;and-intro&quot;</span>) <span class="fu">$</span></a>
 <a class="sourceLine" id="cb6-4" data-line-number="4">  <span class="dt">Rule</span></a>
-<a class="sourceLine" id="cb6-5" data-line-number="5">    (<span class="dt">JConj</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>)) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>)))</a>
-<a class="sourceLine" id="cb6-6" data-line-number="6">    [ <span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>)</a>
-<a class="sourceLine" id="cb6-7" data-line-number="7">    , <span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>)</a>
+<a class="sourceLine" id="cb6-5" data-line-number="5">    (<span class="dt">JConj</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>) emptySub) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>) emptySub))</a>
+<a class="sourceLine" id="cb6-6" data-line-number="6">    [ <span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>) emptySub</a>
+<a class="sourceLine" id="cb6-7" data-line-number="7">    , <span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>) emptySub</a>
 <a class="sourceLine" id="cb6-8" data-line-number="8">    ]</a></code></pre></div>
 <p>This rule governs when the <span class="math inline">\(\wedge\)</span> symbol can be introduced. There are analogous <em>and-elimination rules</em> for removing a <span class="math inline">\(\wedge\)</span>:</p>
 <p><span class="math display">\[\begin{array}{c}
@@ -164,19 +164,19 @@ P &amp;            &amp; Q \\ \hline
  P \wedge Q \\ \hline Q
 \end{array}\]</span></p>
 <div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1"><span class="ot">ax_and_elim_1 ::</span> <span class="dt">Claim</span></a>
-<a class="sourceLine" id="cb7-2" data-line-number="2">ax_and_elim_1 <span class="fu">=</span> <span class="dt">Axiom</span></a>
+<a class="sourceLine" id="cb7-2" data-line-number="2">ax_and_elim_1 <span class="fu">=</span> <span class="dt">Axiom</span> <span class="dt">InferenceRule</span></a>
 <a class="sourceLine" id="cb7-3" data-line-number="3">  (<span class="dt">RuleName</span> <span class="st">&quot;and-elim-1&quot;</span>) <span class="fu">$</span></a>
 <a class="sourceLine" id="cb7-4" data-line-number="4">  <span class="dt">Rule</span></a>
-<a class="sourceLine" id="cb7-5" data-line-number="5">    (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>))</a>
-<a class="sourceLine" id="cb7-6" data-line-number="6">    [ <span class="dt">JConj</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>)) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>))</a>
+<a class="sourceLine" id="cb7-5" data-line-number="5">    (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>) emptySub)</a>
+<a class="sourceLine" id="cb7-6" data-line-number="6">    [ <span class="dt">JConj</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>) emptySub) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>) emptySub)</a>
 <a class="sourceLine" id="cb7-7" data-line-number="7">    ]</a>
 <a class="sourceLine" id="cb7-8" data-line-number="8"></a>
 <a class="sourceLine" id="cb7-9" data-line-number="9"><span class="ot">ax_and_elim_2 ::</span> <span class="dt">Claim</span></a>
-<a class="sourceLine" id="cb7-10" data-line-number="10">ax_and_elim_2 <span class="fu">=</span> <span class="dt">Axiom</span></a>
+<a class="sourceLine" id="cb7-10" data-line-number="10">ax_and_elim_2 <span class="fu">=</span> <span class="dt">Axiom</span> <span class="dt">InferenceRule</span></a>
 <a class="sourceLine" id="cb7-11" data-line-number="11">  (<span class="dt">RuleName</span> <span class="st">&quot;and-elim-2&quot;</span>) <span class="fu">$</span></a>
 <a class="sourceLine" id="cb7-12" data-line-number="12">  <span class="dt">Rule</span></a>
-<a class="sourceLine" id="cb7-13" data-line-number="13">    (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>))</a>
-<a class="sourceLine" id="cb7-14" data-line-number="14">    [ <span class="dt">JConj</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>)) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>))</a>
+<a class="sourceLine" id="cb7-13" data-line-number="13">    (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>) emptySub)</a>
+<a class="sourceLine" id="cb7-14" data-line-number="14">    [ <span class="dt">JConj</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>) emptySub) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>) emptySub)</a>
 <a class="sourceLine" id="cb7-15" data-line-number="15">    ]</a></code></pre></div>
 <p>And from these we can already prove a theorem:</p>
 <p><span class="math display">\[\begin{array}{c}
@@ -192,16 +192,16 @@ P &amp;            &amp; Q \\ \hline
 <a class="sourceLine" id="cb8-2" data-line-number="2">thm_and_comm <span class="fu">=</span> <span class="dt">Theorem</span></a>
 <a class="sourceLine" id="cb8-3" data-line-number="3">  (<span class="dt">RuleName</span> <span class="st">&quot;and-comm&quot;</span>)</a>
 <a class="sourceLine" id="cb8-4" data-line-number="4">  (<span class="dt">Rule</span></a>
-<a class="sourceLine" id="cb8-5" data-line-number="5">    (<span class="dt">JConj</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>)) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>)))</a>
-<a class="sourceLine" id="cb8-6" data-line-number="6">    [<span class="dt">JConj</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>)) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>))</a>
+<a class="sourceLine" id="cb8-5" data-line-number="5">    (<span class="dt">JConj</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>) emptySub) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>) emptySub))</a>
+<a class="sourceLine" id="cb8-6" data-line-number="6">    [<span class="dt">JConj</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>) emptySub) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>) emptySub)</a>
 <a class="sourceLine" id="cb8-7" data-line-number="7">    ])</a>
 <a class="sourceLine" id="cb8-8" data-line-number="8">  (<span class="dt">Use</span> <span class="dt">Q</span> (<span class="dt">RuleName</span> <span class="st">&quot;and-intro&quot;</span>)</a>
-<a class="sourceLine" id="cb8-9" data-line-number="9">      (<span class="dt">JConj</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>)) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>)))</a>
-<a class="sourceLine" id="cb8-10" data-line-number="10">    [ <span class="dt">Use</span> <span class="dt">Q</span> (<span class="dt">RuleName</span> <span class="st">&quot;and-elim-2&quot;</span>) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>))</a>
-<a class="sourceLine" id="cb8-11" data-line-number="11">      [ <span class="dt">Assume</span> <span class="dt">Q</span> <span class="dv">1</span> (<span class="dt">JConj</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>)) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>)))</a>
+<a class="sourceLine" id="cb8-9" data-line-number="9">      (<span class="dt">JConj</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>) emptySub) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>) emptySub))</a>
+<a class="sourceLine" id="cb8-10" data-line-number="10">    [ <span class="dt">Use</span> <span class="dt">Q</span> (<span class="dt">RuleName</span> <span class="st">&quot;and-elim-2&quot;</span>) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>) emptySub)</a>
+<a class="sourceLine" id="cb8-11" data-line-number="11">      [ <span class="dt">Assume</span> <span class="dt">Q</span> <span class="dv">1</span> (<span class="dt">JConj</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>) emptySub) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>) emptySub))</a>
 <a class="sourceLine" id="cb8-12" data-line-number="12">      ]</a>
-<a class="sourceLine" id="cb8-13" data-line-number="13">    , <span class="dt">Use</span> <span class="dt">Q</span> (<span class="dt">RuleName</span> <span class="st">&quot;and-elim-1&quot;</span>) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>))</a>
-<a class="sourceLine" id="cb8-14" data-line-number="14">      [ <span class="dt">Assume</span> <span class="dt">Q</span> <span class="dv">1</span> (<span class="dt">JConj</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>)) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>)))</a>
+<a class="sourceLine" id="cb8-13" data-line-number="13">    , <span class="dt">Use</span> <span class="dt">Q</span> (<span class="dt">RuleName</span> <span class="st">&quot;and-elim-1&quot;</span>) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>) emptySub)</a>
+<a class="sourceLine" id="cb8-14" data-line-number="14">      [ <span class="dt">Assume</span> <span class="dt">Q</span> <span class="dv">1</span> (<span class="dt">JConj</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>) emptySub) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>) emptySub))</a>
 <a class="sourceLine" id="cb8-15" data-line-number="15">      ]</a>
 <a class="sourceLine" id="cb8-16" data-line-number="16">    ])</a></code></pre></div>
 <p>This notation is tedious! Eventually we will develop a better concrete syntax. For now it’s better to work with the raw abstract syntax, to be sure that what we say is what we mean.</p>
@@ -211,39 +211,39 @@ P &amp;            &amp; Q \\ \hline
  &amp; Q &amp;
 \end{array}\]</span></p>
 <div class="sourceCode" id="cb9"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" data-line-number="1"><span class="ot">ax_modus_ponens ::</span> <span class="dt">Claim</span></a>
-<a class="sourceLine" id="cb9-2" data-line-number="2">ax_modus_ponens <span class="fu">=</span> <span class="dt">Axiom</span></a>
+<a class="sourceLine" id="cb9-2" data-line-number="2">ax_modus_ponens <span class="fu">=</span> <span class="dt">Axiom</span> <span class="dt">InferenceRule</span></a>
 <a class="sourceLine" id="cb9-3" data-line-number="3">  (<span class="dt">RuleName</span> <span class="st">&quot;modus-ponens&quot;</span>) <span class="fu">$</span></a>
 <a class="sourceLine" id="cb9-4" data-line-number="4">  <span class="dt">Rule</span></a>
-<a class="sourceLine" id="cb9-5" data-line-number="5">    (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>))</a>
-<a class="sourceLine" id="cb9-6" data-line-number="6">    [ <span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>)</a>
-<a class="sourceLine" id="cb9-7" data-line-number="7">    , <span class="dt">JImpl</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>)) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>))</a>
+<a class="sourceLine" id="cb9-5" data-line-number="5">    (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>) emptySub)</a>
+<a class="sourceLine" id="cb9-6" data-line-number="6">    [ <span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>) emptySub</a>
+<a class="sourceLine" id="cb9-7" data-line-number="7">    , <span class="dt">JImpl</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>) emptySub) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>) emptySub)</a>
 <a class="sourceLine" id="cb9-8" data-line-number="8">    ]</a></code></pre></div>
 <p>We can now show that <span class="math inline">\(\Rightarrow\)</span> is transitive.</p>
 <div class="sourceCode" id="cb10"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" data-line-number="1"><span class="ot">thm_imp_trans ::</span> <span class="dt">Claim</span></a>
 <a class="sourceLine" id="cb10-2" data-line-number="2">thm_imp_trans <span class="fu">=</span> <span class="dt">Theorem</span></a>
 <a class="sourceLine" id="cb10-3" data-line-number="3">  (<span class="dt">RuleName</span> <span class="st">&quot;imp-trans&quot;</span>)</a>
 <a class="sourceLine" id="cb10-4" data-line-number="4">  (<span class="dt">Rule</span></a>
-<a class="sourceLine" id="cb10-5" data-line-number="5">    ( <span class="dt">JImpl</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>)) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;r&quot;</span>)) )</a>
-<a class="sourceLine" id="cb10-6" data-line-number="6">    [ <span class="dt">JImpl</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>)) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>))</a>
-<a class="sourceLine" id="cb10-7" data-line-number="7">    , <span class="dt">JImpl</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>)) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;r&quot;</span>))</a>
+<a class="sourceLine" id="cb10-5" data-line-number="5">    ( <span class="dt">JImpl</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>) emptySub) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;r&quot;</span>) emptySub) )</a>
+<a class="sourceLine" id="cb10-6" data-line-number="6">    [ <span class="dt">JImpl</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>) emptySub) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>) emptySub)</a>
+<a class="sourceLine" id="cb10-7" data-line-number="7">    , <span class="dt">JImpl</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>) emptySub) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;r&quot;</span>) emptySub)</a>
 <a class="sourceLine" id="cb10-8" data-line-number="8">    ])</a>
 <a class="sourceLine" id="cb10-9" data-line-number="9">  (<span class="dt">Dis</span> <span class="dt">Q</span> (<span class="dt">HypName</span> <span class="st">&quot;assume-p&quot;</span>)</a>
-<a class="sourceLine" id="cb10-10" data-line-number="10">      (<span class="dt">JImpl</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>)) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;r&quot;</span>))) <span class="fu">$</span></a>
+<a class="sourceLine" id="cb10-10" data-line-number="10">      (<span class="dt">JImpl</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>) emptySub) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;r&quot;</span>) emptySub)) <span class="fu">$</span></a>
 <a class="sourceLine" id="cb10-11" data-line-number="11">    <span class="dt">Use</span> <span class="dt">Q</span> (<span class="dt">RuleName</span> <span class="st">&quot;modus-ponens&quot;</span>)</a>
-<a class="sourceLine" id="cb10-12" data-line-number="12">    (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;r&quot;</span>))</a>
+<a class="sourceLine" id="cb10-12" data-line-number="12">    (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;r&quot;</span>) emptySub)</a>
 <a class="sourceLine" id="cb10-13" data-line-number="13">    [ <span class="dt">Use</span> <span class="dt">Q</span> (<span class="dt">RuleName</span> <span class="st">&quot;modus-ponens&quot;</span>)</a>
-<a class="sourceLine" id="cb10-14" data-line-number="14">      (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>))</a>
+<a class="sourceLine" id="cb10-14" data-line-number="14">      (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>) emptySub)</a>
 <a class="sourceLine" id="cb10-15" data-line-number="15">      [ <span class="dt">Hyp</span> <span class="dt">Q</span> (<span class="dt">HypName</span> <span class="st">&quot;assume-p&quot;</span>)</a>
-<a class="sourceLine" id="cb10-16" data-line-number="16">        (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>))</a>
-<a class="sourceLine" id="cb10-17" data-line-number="17">      , <span class="dt">Assume</span> <span class="dt">Q</span> <span class="dv">1</span> (<span class="dt">JImpl</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>)) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>)))</a>
+<a class="sourceLine" id="cb10-16" data-line-number="16">        (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>) emptySub)</a>
+<a class="sourceLine" id="cb10-17" data-line-number="17">      , <span class="dt">Assume</span> <span class="dt">Q</span> <span class="dv">1</span> (<span class="dt">JImpl</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;p&quot;</span>) emptySub) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>) emptySub))</a>
 <a class="sourceLine" id="cb10-18" data-line-number="18">      ]</a>
-<a class="sourceLine" id="cb10-19" data-line-number="19">    , <span class="dt">Assume</span> <span class="dt">Q</span> <span class="dv">2</span> (<span class="dt">JImpl</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>)) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;r&quot;</span>)))])</a></code></pre></div>
+<a class="sourceLine" id="cb10-19" data-line-number="19">    , <span class="dt">Assume</span> <span class="dt">Q</span> <span class="dv">2</span> (<span class="dt">JImpl</span> <span class="dt">Q</span> (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;q&quot;</span>) emptySub) (<span class="dt">JVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;r&quot;</span>) emptySub))])</a></code></pre></div>
 <p>Next we’ll test substitution proofs. We need an introduction rule for equality:</p>
 <p><span class="math display">\[\begin{array}{c}
  \\ \hline x = x
 \end{array}\]</span></p>
 <div class="sourceCode" id="cb11"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb11-1" data-line-number="1"><span class="ot">ax_eq_intro ::</span> <span class="dt">Claim</span></a>
-<a class="sourceLine" id="cb11-2" data-line-number="2">ax_eq_intro <span class="fu">=</span> <span class="dt">Axiom</span></a>
+<a class="sourceLine" id="cb11-2" data-line-number="2">ax_eq_intro <span class="fu">=</span> <span class="dt">Axiom</span> <span class="dt">InferenceRule</span></a>
 <a class="sourceLine" id="cb11-3" data-line-number="3">  (<span class="dt">RuleName</span> <span class="st">&quot;eq-intro&quot;</span>) <span class="fu">$</span></a>
 <a class="sourceLine" id="cb11-4" data-line-number="4">  <span class="dt">Rule</span></a>
 <a class="sourceLine" id="cb11-5" data-line-number="5">    (<span class="dt">JEq</span> <span class="dt">Q</span> (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)))</a>
@@ -266,14 +266,14 @@ P &amp;            &amp; Q \\ \hline
 <a class="sourceLine" id="cb13-2" data-line-number="2">test_toy_theory <span class="fu">=</span></a>
 <a class="sourceLine" id="cb13-3" data-line-number="3">  <span class="kw">let</span></a>
 <a class="sourceLine" id="cb13-4" data-line-number="4">    claims <span class="fu">=</span></a>
-<a class="sourceLine" id="cb13-5" data-line-number="5">      [ ax_and_intro</a>
-<a class="sourceLine" id="cb13-6" data-line-number="6">      , ax_and_elim_1</a>
-<a class="sourceLine" id="cb13-7" data-line-number="7">      , ax_and_elim_2</a>
-<a class="sourceLine" id="cb13-8" data-line-number="8">      , thm_and_comm</a>
-<a class="sourceLine" id="cb13-9" data-line-number="9">      , ax_modus_ponens</a>
-<a class="sourceLine" id="cb13-10" data-line-number="10">      , thm_imp_trans</a>
-<a class="sourceLine" id="cb13-11" data-line-number="11">      , ax_eq_intro</a>
-<a class="sourceLine" id="cb13-12" data-line-number="12">      , thm_eq_sym</a>
+<a class="sourceLine" id="cb13-5" data-line-number="5">      [ (<span class="dt">Q</span>, ax_and_intro)</a>
+<a class="sourceLine" id="cb13-6" data-line-number="6">      , (<span class="dt">Q</span>, ax_and_elim_1)</a>
+<a class="sourceLine" id="cb13-7" data-line-number="7">      , (<span class="dt">Q</span>, ax_and_elim_2)</a>
+<a class="sourceLine" id="cb13-8" data-line-number="8">      , (<span class="dt">Q</span>, thm_and_comm)</a>
+<a class="sourceLine" id="cb13-9" data-line-number="9">      , (<span class="dt">Q</span>, ax_modus_ponens)</a>
+<a class="sourceLine" id="cb13-10" data-line-number="10">      , (<span class="dt">Q</span>, thm_imp_trans)</a>
+<a class="sourceLine" id="cb13-11" data-line-number="11">      , (<span class="dt">Q</span>, ax_eq_intro)</a>
+<a class="sourceLine" id="cb13-12" data-line-number="12">      , (<span class="dt">Q</span>, thm_eq_sym)</a>
 <a class="sourceLine" id="cb13-13" data-line-number="13">      ]</a>
 <a class="sourceLine" id="cb13-14" data-line-number="14"></a>
 <a class="sourceLine" id="cb13-15" data-line-number="15">    m <span class="fu">=</span> <span class="dt">Module</span> (<span class="dt">ModuleName</span> <span class="st">&quot;module&quot;</span>) claims</a>

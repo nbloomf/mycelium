@@ -125,111 +125,115 @@ P &amp;            &amp; Q \\ \hline
 <a class="sourceLine" id="cb3-5" data-line-number="5">    [ <span class="dt">Rule</span> q&#39; ps&#39; <span class="fu">|</span> q&#39; <span class="ot">&lt;-</span> shrink q, ps&#39; <span class="ot">&lt;-</span> shrink ps ] <span class="fu">++</span></a>
 <a class="sourceLine" id="cb3-6" data-line-number="6">    [ <span class="dt">Rule</span> q ps&#39; <span class="fu">|</span> ps&#39; <span class="ot">&lt;-</span> shrink ps ] <span class="fu">++</span></a>
 <a class="sourceLine" id="cb3-7" data-line-number="7">    [ <span class="dt">Rule</span> q&#39; ps <span class="fu">|</span> q&#39; <span class="ot">&lt;-</span> shrink q ]</a></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="ot">captureJudSubRule ::</span> <span class="dt">Sub</span> <span class="dt">Jud</span> <span class="ot">-&gt;</span> <span class="dt">Rule</span> <span class="ot">-&gt;</span> <span class="dt">Rule</span></a>
+<a class="sourceLine" id="cb4-2" data-line-number="2">captureJudSubRule t (<span class="dt">Rule</span> q ps) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb4-3" data-line-number="3">  <span class="dt">Rule</span> (captureJudSub t q) (map (captureJudSub t) ps)</a></code></pre></div>
 <p>The most important operation on rules is <em>matching</em>. Inference rules are <em>proof schemas</em>, representing many concrete proofs. A rule can be applied to a particular conclusion and list of premises if there is a substitution from the rule to the candidate judgements.</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="ot">matchRule ::</span> <span class="dt">Rule</span> <span class="ot">-&gt;</span> <span class="dt">Jud</span> <span class="ot">-&gt;</span> [<span class="dt">Jud</span>] <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">Sub</span> <span class="dt">Jud</span>, <span class="dt">Sub</span> <span class="dt">Expr</span>)</a>
-<a class="sourceLine" id="cb4-2" data-line-number="2">matchRule (<span class="dt">Rule</span> a as) b bs <span class="fu">=</span> matchList (a<span class="fu">:</span>as, b<span class="fu">:</span>bs)</a>
-<a class="sourceLine" id="cb4-3" data-line-number="3">  <span class="kw">where</span></a>
-<a class="sourceLine" id="cb4-4" data-line-number="4"><span class="ot">    matchList ::</span> ([<span class="dt">Jud</span>],[<span class="dt">Jud</span>]) <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">Sub</span> <span class="dt">Jud</span>, <span class="dt">Sub</span> <span class="dt">Expr</span>)</a>
-<a class="sourceLine" id="cb4-5" data-line-number="5">    matchList <span class="fu">=</span> \<span class="kw">case</span></a>
-<a class="sourceLine" id="cb4-6" data-line-number="6">      ([],[]) <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb4-7" data-line-number="7">        return (emptySub, emptySub)</a>
-<a class="sourceLine" id="cb4-8" data-line-number="8">      (u<span class="fu">:</span>us,v<span class="fu">:</span>vs) <span class="ot">-&gt;</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb4-9" data-line-number="9">        (js1,es1) <span class="ot">&lt;-</span> matchJud u v</a>
-<a class="sourceLine" id="cb4-10" data-line-number="10">        (js2,es2) <span class="ot">&lt;-</span> matchList (us,vs)</a>
-<a class="sourceLine" id="cb4-11" data-line-number="11">        js <span class="ot">&lt;-</span> unionSub js1 js2</a>
-<a class="sourceLine" id="cb4-12" data-line-number="12">        es <span class="ot">&lt;-</span> unionSub es1 es2</a>
-<a class="sourceLine" id="cb4-13" data-line-number="13">        return (js, es)</a>
-<a class="sourceLine" id="cb4-14" data-line-number="14">      _ <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="ot">matchRule ::</span> <span class="dt">Rule</span> <span class="ot">-&gt;</span> <span class="dt">Jud</span> <span class="ot">-&gt;</span> [<span class="dt">Jud</span>] <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">Sub</span> <span class="dt">Jud</span>, <span class="dt">Sub</span> <span class="dt">Expr</span>)</a>
+<a class="sourceLine" id="cb5-2" data-line-number="2">matchRule (<span class="dt">Rule</span> a as) b bs <span class="fu">=</span> matchList (a<span class="fu">:</span>as, b<span class="fu">:</span>bs)</a>
+<a class="sourceLine" id="cb5-3" data-line-number="3">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb5-4" data-line-number="4"><span class="ot">    matchList ::</span> ([<span class="dt">Jud</span>],[<span class="dt">Jud</span>]) <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">Sub</span> <span class="dt">Jud</span>, <span class="dt">Sub</span> <span class="dt">Expr</span>)</a>
+<a class="sourceLine" id="cb5-5" data-line-number="5">    matchList <span class="fu">=</span> \<span class="kw">case</span></a>
+<a class="sourceLine" id="cb5-6" data-line-number="6">      ([],[]) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb5-7" data-line-number="7">        return (emptySub, emptySub)</a>
+<a class="sourceLine" id="cb5-8" data-line-number="8">      (u<span class="fu">:</span>us,v<span class="fu">:</span>vs) <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb5-9" data-line-number="9">        (js1,es1) <span class="ot">&lt;-</span> matchJud u v</a>
+<a class="sourceLine" id="cb5-10" data-line-number="10">        (js2,es2) <span class="ot">&lt;-</span> matchList (us,vs)</a>
+<a class="sourceLine" id="cb5-11" data-line-number="11">        js <span class="ot">&lt;-</span> unionSub js1 js2</a>
+<a class="sourceLine" id="cb5-12" data-line-number="12">        es <span class="ot">&lt;-</span> unionSub es1 es2</a>
+<a class="sourceLine" id="cb5-13" data-line-number="13">        return (js, es)</a>
+<a class="sourceLine" id="cb5-14" data-line-number="14">      _ <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a></code></pre></div>
 <p>Note that matching rules imposes an order on the premises. Most authors on natural deduction say that the order of premises for an inference rule doesn’t matter, but allowing rearrangements of the premises would make matching much more complicated – so we just won’t do that :).</p>
 <p>We can test <code>matchRule</code> a couple of different ways. The most obvious one is that if a rule matches a given list of judgements, then the substitution should carry the rule to the judgements.</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1">test_match_rule</a>
-<a class="sourceLine" id="cb5-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">Rule</span> <span class="ot">-&gt;</span> <span class="dt">Jud</span> <span class="ot">-&gt;</span> [<span class="dt">Jud</span>] <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
-<a class="sourceLine" id="cb5-3" data-line-number="3">test_match_rule r<span class="fu">@</span>(<span class="dt">Rule</span> cr hrs) ct hts <span class="fu">=</span></a>
-<a class="sourceLine" id="cb5-4" data-line-number="4">  <span class="kw">case</span> matchRule r ct hts <span class="kw">of</span></a>
-<a class="sourceLine" id="cb5-5" data-line-number="5">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">True</span></a>
-<a class="sourceLine" id="cb5-6" data-line-number="6">    <span class="dt">Just</span> (js,es) <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb5-7" data-line-number="7">      <span class="kw">let</span></a>
-<a class="sourceLine" id="cb5-8" data-line-number="8">        ok a b <span class="fu">=</span> a <span class="fu">==</span> js <span class="fu">$~</span> (es <span class="fu">$&gt;</span> b)</a>
-<a class="sourceLine" id="cb5-9" data-line-number="9">      <span class="kw">in</span> and</a>
-<a class="sourceLine" id="cb5-10" data-line-number="10">        [ ok ct cr</a>
-<a class="sourceLine" id="cb5-11" data-line-number="11">        , length hrs <span class="fu">==</span> length hts</a>
-<a class="sourceLine" id="cb5-12" data-line-number="12">        , and <span class="fu">$</span> zipWith ok hts hrs</a>
-<a class="sourceLine" id="cb5-13" data-line-number="13">        ]</a></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1">test_match_rule</a>
+<a class="sourceLine" id="cb6-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">Rule</span> <span class="ot">-&gt;</span> <span class="dt">Jud</span> <span class="ot">-&gt;</span> [<span class="dt">Jud</span>] <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb6-3" data-line-number="3">test_match_rule r<span class="fu">@</span>(<span class="dt">Rule</span> cr hrs) ct hts <span class="fu">=</span></a>
+<a class="sourceLine" id="cb6-4" data-line-number="4">  <span class="kw">case</span> matchRule r ct hts <span class="kw">of</span></a>
+<a class="sourceLine" id="cb6-5" data-line-number="5">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">True</span></a>
+<a class="sourceLine" id="cb6-6" data-line-number="6">    <span class="dt">Just</span> (js,es) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb6-7" data-line-number="7">      <span class="kw">let</span></a>
+<a class="sourceLine" id="cb6-8" data-line-number="8">        ok a b <span class="fu">=</span> a <span class="fu">==</span> js <span class="fu">$~</span> (es <span class="fu">$&gt;</span> b)</a>
+<a class="sourceLine" id="cb6-9" data-line-number="9">      <span class="kw">in</span> and</a>
+<a class="sourceLine" id="cb6-10" data-line-number="10">        [ ok ct cr</a>
+<a class="sourceLine" id="cb6-11" data-line-number="11">        , length hrs <span class="fu">==</span> length hts</a>
+<a class="sourceLine" id="cb6-12" data-line-number="12">        , and <span class="fu">$</span> zipWith ok hts hrs</a>
+<a class="sourceLine" id="cb6-13" data-line-number="13">        ]</a></code></pre></div>
 <p>This test doesn’t carry a lot of confidence, because the vast majority of generated test cases are useless.</p>
 <p>Another check is that rules should match themselves.</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1">test_match_rule_self</a>
-<a class="sourceLine" id="cb6-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">Rule</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
-<a class="sourceLine" id="cb6-3" data-line-number="3">test_match_rule_self r<span class="fu">@</span>(<span class="dt">Rule</span> c hs) <span class="fu">=</span></a>
-<a class="sourceLine" id="cb6-4" data-line-number="4">  <span class="kw">case</span> matchRule r c hs <span class="kw">of</span></a>
-<a class="sourceLine" id="cb6-5" data-line-number="5">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">False</span></a>
-<a class="sourceLine" id="cb6-6" data-line-number="6">    <span class="dt">Just</span> (_,es) <span class="ot">-&gt;</span> trivialExprSub es</a></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1">test_match_rule_self</a>
+<a class="sourceLine" id="cb7-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">Rule</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb7-3" data-line-number="3">test_match_rule_self r<span class="fu">@</span>(<span class="dt">Rule</span> c hs) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb7-4" data-line-number="4">  <span class="kw">case</span> matchRule r c hs <span class="kw">of</span></a>
+<a class="sourceLine" id="cb7-5" data-line-number="5">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">False</span></a>
+<a class="sourceLine" id="cb7-6" data-line-number="6">    <span class="dt">Just</span> (_,es) <span class="ot">-&gt;</span> trivialExprSub es</a></code></pre></div>
 <p>And if we apply a substitution to a rule, it should match the result.</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1">test_match_rule_sub</a>
-<a class="sourceLine" id="cb7-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">Rule</span> <span class="ot">-&gt;</span> <span class="dt">Sub</span> <span class="dt">Jud</span> <span class="ot">-&gt;</span> <span class="dt">Sub</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
-<a class="sourceLine" id="cb7-3" data-line-number="3">test_match_rule_sub r<span class="fu">@</span>(<span class="dt">Rule</span> c hs) js es <span class="fu">=</span></a>
-<a class="sourceLine" id="cb7-4" data-line-number="4">  <span class="kw">let</span> s x <span class="fu">=</span> js <span class="fu">$~</span> (es <span class="fu">$&gt;</span> x) <span class="kw">in</span></a>
-<a class="sourceLine" id="cb7-5" data-line-number="5">  <span class="kw">case</span> matchRule r (s c) (map s hs) <span class="kw">of</span></a>
-<a class="sourceLine" id="cb7-6" data-line-number="6">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">False</span></a>
-<a class="sourceLine" id="cb7-7" data-line-number="7">    <span class="dt">Just</span> _ <span class="ot">-&gt;</span> <span class="dt">True</span></a></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" data-line-number="1">test_match_rule_sub</a>
+<a class="sourceLine" id="cb8-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">Rule</span> <span class="ot">-&gt;</span> <span class="dt">Sub</span> <span class="dt">Jud</span> <span class="ot">-&gt;</span> <span class="dt">Sub</span> <span class="dt">Expr</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb8-3" data-line-number="3">test_match_rule_sub r<span class="fu">@</span>(<span class="dt">Rule</span> c hs) js es <span class="fu">=</span></a>
+<a class="sourceLine" id="cb8-4" data-line-number="4">  <span class="kw">let</span> s x <span class="fu">=</span> js <span class="fu">$~</span> (es <span class="fu">$&gt;</span> x) <span class="kw">in</span></a>
+<a class="sourceLine" id="cb8-5" data-line-number="5">  <span class="kw">case</span> matchRule r (s c) (map s hs) <span class="kw">of</span></a>
+<a class="sourceLine" id="cb8-6" data-line-number="6">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">False</span></a>
+<a class="sourceLine" id="cb8-7" data-line-number="7">    <span class="dt">Just</span> _ <span class="ot">-&gt;</span> <span class="dt">True</span></a></code></pre></div>
 <p>In one sense a <code>Rule</code> is just a list of judgements, which makes it easy to define <code>HasExprVars</code> and <code>TypeCheck</code> instances.</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">HasExprVars</span> <span class="dt">Rule</span> <span class="kw">where</span></a>
-<a class="sourceLine" id="cb8-2" data-line-number="2">  freeExprVars (<span class="dt">Rule</span> c hs) <span class="fu">=</span></a>
-<a class="sourceLine" id="cb8-3" data-line-number="3">    mconcat <span class="fu">$</span> map freeExprVars (c<span class="fu">:</span>hs)</a>
-<a class="sourceLine" id="cb8-4" data-line-number="4">  renameBoundExpr avoid (<span class="dt">Rule</span> c hs) <span class="fu">=</span></a>
-<a class="sourceLine" id="cb8-5" data-line-number="5">    <span class="dt">Rule</span> (renameBoundExpr avoid c) (map (renameBoundExpr avoid) hs)</a>
-<a class="sourceLine" id="cb8-6" data-line-number="6">  renameFreeExpr (u,v) (<span class="dt">Rule</span> c hs) <span class="fu">=</span></a>
-<a class="sourceLine" id="cb8-7" data-line-number="7">    <span class="dt">Rule</span> (renameFreeExpr (u,v) c) (map (renameFreeExpr (u,v)) hs)</a>
-<a class="sourceLine" id="cb8-8" data-line-number="8"></a>
-<a class="sourceLine" id="cb8-9" data-line-number="9"><span class="kw">instance</span> <span class="dt">TypeCheck</span> <span class="dt">Rule</span> <span class="kw">where</span></a>
-<a class="sourceLine" id="cb8-10" data-line-number="10">  typeCheck (<span class="dt">Rule</span> c hs) env <span class="fu">=</span> concatM (map typeCheck (c<span class="fu">:</span>hs)) env</a></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">HasExprVars</span> <span class="dt">Rule</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb9-2" data-line-number="2">  freeExprVars (<span class="dt">Rule</span> c hs) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb9-3" data-line-number="3">    mconcat <span class="fu">$</span> map freeExprVars (c<span class="fu">:</span>hs)</a>
+<a class="sourceLine" id="cb9-4" data-line-number="4">  renameBoundExpr avoid (<span class="dt">Rule</span> c hs) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb9-5" data-line-number="5">    <span class="dt">Rule</span> (renameBoundExpr avoid c) (map (renameBoundExpr avoid) hs)</a>
+<a class="sourceLine" id="cb9-6" data-line-number="6">  renameFreeExpr (u,v) (<span class="dt">Rule</span> c hs) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb9-7" data-line-number="7">    <span class="dt">Rule</span> (renameFreeExpr (u,v) c) (map (renameFreeExpr (u,v)) hs)</a>
+<a class="sourceLine" id="cb9-8" data-line-number="8"></a>
+<a class="sourceLine" id="cb9-9" data-line-number="9"><span class="kw">instance</span> <span class="dt">TypeCheck</span> <span class="dt">Rule</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb9-10" data-line-number="10">  typeCheck (<span class="dt">Rule</span> c hs) env <span class="fu">=</span> concatM (map typeCheck (c<span class="fu">:</span>hs)) env</a></code></pre></div>
 <p>For funsies, let’s see an example. From the rule</p>
 <p><span class="math display">\[\begin{array}{ccc}
  \\ \hline
  xy = z
 \end{array}\]</span></p>
 <p>we infer that <span class="math inline">\(y\)</span> has type <span class="math inline">\(a\)</span>, <span class="math inline">\(z\)</span> has type <span class="math inline">\(b\)</span>, and <span class="math inline">\(x\)</span> has type <span class="math inline">\(a \rightarrow b\)</span>.</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" data-line-number="1"><span class="ot">test_cases_rule_typecheck ::</span> <span class="dt">Bool</span></a>
-<a class="sourceLine" id="cb9-2" data-line-number="2">test_cases_rule_typecheck <span class="fu">=</span> and</a>
-<a class="sourceLine" id="cb9-3" data-line-number="3">  [ _typecheck_and_unify</a>
-<a class="sourceLine" id="cb9-4" data-line-number="4"></a>
-<a class="sourceLine" id="cb9-5" data-line-number="5">    (<span class="dt">Rule</span></a>
-<a class="sourceLine" id="cb9-6" data-line-number="6">      (<span class="dt">JEq</span> <span class="dt">Q</span></a>
-<a class="sourceLine" id="cb9-7" data-line-number="7">        (<span class="dt">EApp</span> <span class="dt">Q</span> (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)))</a>
-<a class="sourceLine" id="cb9-8" data-line-number="8">        (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;z&quot;</span>)))</a>
-<a class="sourceLine" id="cb9-9" data-line-number="9">      [])</a>
-<a class="sourceLine" id="cb9-10" data-line-number="10"></a>
-<a class="sourceLine" id="cb9-11" data-line-number="11">    (<span class="dt">TypeEnv</span> <span class="fu">$</span> M.fromList</a>
-<a class="sourceLine" id="cb9-12" data-line-number="12">      [ (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Var</span> <span class="st">&quot;x&quot;</span>, <span class="dt">ForAll</span> S.empty</a>
-<a class="sourceLine" id="cb9-13" data-line-number="13">          (<span class="dt">TArr</span> <span class="dt">Q</span> (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;a&quot;</span>)) (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;b&quot;</span>))))</a>
-<a class="sourceLine" id="cb9-14" data-line-number="14">      , (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Var</span> <span class="st">&quot;y&quot;</span>, <span class="dt">ForAll</span> S.empty</a>
-<a class="sourceLine" id="cb9-15" data-line-number="15">          (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;a&quot;</span>)))</a>
-<a class="sourceLine" id="cb9-16" data-line-number="16">      , (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Var</span> <span class="st">&quot;z&quot;</span>, <span class="dt">ForAll</span> S.empty</a>
-<a class="sourceLine" id="cb9-17" data-line-number="17">          (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;b&quot;</span>)))</a>
-<a class="sourceLine" id="cb9-18" data-line-number="18">      ])</a>
-<a class="sourceLine" id="cb9-19" data-line-number="19">  ]</a></code></pre></div>
-<p>Inference rules will end up playing a role similar to axioms and theorems. We’ll have a bunch of them we consider “valid” for some reason and are allowed to match them against proofs. With this in mind, we define a <em>rule environment</em> to be a set of named rules.</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" data-line-number="1"><span class="kw">data</span> <span class="dt">RuleEnv</span> <span class="fu">=</span> <span class="dt">RuleEnv</span></a>
-<a class="sourceLine" id="cb10-2" data-line-number="2">  {<span class="ot"> theRuleEnv ::</span> <span class="dt">M.Map</span> <span class="dt">RuleName</span> <span class="dt">Rule</span></a>
-<a class="sourceLine" id="cb10-3" data-line-number="3">  } <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>)</a>
+<div class="sourceCode" id="cb10"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" data-line-number="1"><span class="ot">test_cases_rule_typecheck ::</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb10-2" data-line-number="2">test_cases_rule_typecheck <span class="fu">=</span> and</a>
+<a class="sourceLine" id="cb10-3" data-line-number="3">  [ _typecheck_and_unify</a>
 <a class="sourceLine" id="cb10-4" data-line-number="4"></a>
-<a class="sourceLine" id="cb10-5" data-line-number="5"><span class="kw">data</span> <span class="dt">RuleName</span> <span class="fu">=</span> <span class="dt">RuleName</span> <span class="dt">String</span></a>
-<a class="sourceLine" id="cb10-6" data-line-number="6">  <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Ord</span>, <span class="dt">Show</span>)</a>
-<a class="sourceLine" id="cb10-7" data-line-number="7"></a>
-<a class="sourceLine" id="cb10-8" data-line-number="8"><span class="kw">instance</span> <span class="dt">Arbitrary</span> <span class="dt">RuleName</span> <span class="kw">where</span></a>
-<a class="sourceLine" id="cb10-9" data-line-number="9">  arbitrary <span class="fu">=</span> <span class="dt">RuleName</span> <span class="fu">&lt;$&gt;</span> (listOf1 <span class="fu">$</span> elements _rulename_chars)</a>
+<a class="sourceLine" id="cb10-5" data-line-number="5">    (<span class="dt">Rule</span></a>
+<a class="sourceLine" id="cb10-6" data-line-number="6">      (<span class="dt">JEq</span> <span class="dt">Q</span></a>
+<a class="sourceLine" id="cb10-7" data-line-number="7">        (<span class="dt">EApp</span> <span class="dt">Q</span> (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;x&quot;</span>)) (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;y&quot;</span>)))</a>
+<a class="sourceLine" id="cb10-8" data-line-number="8">        (<span class="dt">EVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;z&quot;</span>)))</a>
+<a class="sourceLine" id="cb10-9" data-line-number="9">      [])</a>
 <a class="sourceLine" id="cb10-10" data-line-number="10"></a>
-<a class="sourceLine" id="cb10-11" data-line-number="11">_rulename_chars <span class="fu">=</span> concat</a>
-<a class="sourceLine" id="cb10-12" data-line-number="12">  [ <span class="st">&quot;abcdefghijklmnopqrstuvwxyz&quot;</span></a>
-<a class="sourceLine" id="cb10-13" data-line-number="13">  , <span class="st">&quot;ABCDEFGHIJKLMNOPQRSTUVWXYZ&quot;</span></a>
-<a class="sourceLine" id="cb10-14" data-line-number="14">  , <span class="st">&quot;0123456789-_&quot;</span></a>
-<a class="sourceLine" id="cb10-15" data-line-number="15">  ]</a></code></pre></div>
+<a class="sourceLine" id="cb10-11" data-line-number="11">    (<span class="dt">TypeEnv</span> <span class="fu">$</span> M.fromList</a>
+<a class="sourceLine" id="cb10-12" data-line-number="12">      [ (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Var</span> <span class="st">&quot;x&quot;</span>, <span class="dt">ForAll</span> S.empty</a>
+<a class="sourceLine" id="cb10-13" data-line-number="13">          (<span class="dt">TArr</span> <span class="dt">Q</span> (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;a&quot;</span>)) (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;b&quot;</span>))))</a>
+<a class="sourceLine" id="cb10-14" data-line-number="14">      , (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Var</span> <span class="st">&quot;y&quot;</span>, <span class="dt">ForAll</span> S.empty</a>
+<a class="sourceLine" id="cb10-15" data-line-number="15">          (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;a&quot;</span>)))</a>
+<a class="sourceLine" id="cb10-16" data-line-number="16">      , (<span class="dt">Right</span> <span class="fu">$</span> <span class="dt">Var</span> <span class="st">&quot;z&quot;</span>, <span class="dt">ForAll</span> S.empty</a>
+<a class="sourceLine" id="cb10-17" data-line-number="17">          (<span class="dt">TVar</span> <span class="dt">Q</span> (<span class="dt">Var</span> <span class="st">&quot;b&quot;</span>)))</a>
+<a class="sourceLine" id="cb10-18" data-line-number="18">      ])</a>
+<a class="sourceLine" id="cb10-19" data-line-number="19">  ]</a></code></pre></div>
+<p>Inference rules will end up playing a role similar to axioms and theorems. We’ll have a bunch of them we consider “valid” for some reason and are allowed to match them against proofs. With this in mind, we define a <em>rule environment</em> to be a set of named rules.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb11-1" data-line-number="1"><span class="kw">data</span> <span class="dt">RuleEnv</span> <span class="fu">=</span> <span class="dt">RuleEnv</span></a>
+<a class="sourceLine" id="cb11-2" data-line-number="2">  {<span class="ot"> theRuleEnv ::</span> <span class="dt">M.Map</span> <span class="dt">RuleName</span> <span class="dt">Rule</span></a>
+<a class="sourceLine" id="cb11-3" data-line-number="3">  } <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>)</a>
+<a class="sourceLine" id="cb11-4" data-line-number="4"></a>
+<a class="sourceLine" id="cb11-5" data-line-number="5"><span class="kw">data</span> <span class="dt">RuleName</span> <span class="fu">=</span> <span class="dt">RuleName</span> <span class="dt">String</span></a>
+<a class="sourceLine" id="cb11-6" data-line-number="6">  <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Ord</span>, <span class="dt">Show</span>)</a>
+<a class="sourceLine" id="cb11-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb11-8" data-line-number="8"><span class="kw">instance</span> <span class="dt">Arbitrary</span> <span class="dt">RuleName</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb11-9" data-line-number="9">  arbitrary <span class="fu">=</span> <span class="dt">RuleName</span> <span class="fu">&lt;$&gt;</span> (listOf1 <span class="fu">$</span> elements _rulename_chars)</a>
+<a class="sourceLine" id="cb11-10" data-line-number="10"></a>
+<a class="sourceLine" id="cb11-11" data-line-number="11">_rulename_chars <span class="fu">=</span> concat</a>
+<a class="sourceLine" id="cb11-12" data-line-number="12">  [ <span class="st">&quot;abcdefghijklmnopqrstuvwxyz&quot;</span></a>
+<a class="sourceLine" id="cb11-13" data-line-number="13">  , <span class="st">&quot;ABCDEFGHIJKLMNOPQRSTUVWXYZ&quot;</span></a>
+<a class="sourceLine" id="cb11-14" data-line-number="14">  , <span class="st">&quot;0123456789-_&quot;</span></a>
+<a class="sourceLine" id="cb11-15" data-line-number="15">  ]</a></code></pre></div>
 <h2 id="proof">Proof</h2>
 <p>A natural deduction style proof is essentially a labeled rose tree of judgements; the nodes in the tree are <em>supported judgements</em>, and each node is labeled with a <em>justification</em>. We can define this with a type; the full details are a little more complicated than ‘labeled rose tree’ because certain labels are special forms that need to be dealt with differently.</p>
-<div class="sourceCode" id="cb11"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb11-1" data-line-number="1"><span class="kw">data</span> <span class="dt">Proof</span></a>
-<a class="sourceLine" id="cb11-2" data-line-number="2">  <span class="fu">=</span> <span class="dt">Use</span> <span class="dt">Loc</span> <span class="dt">RuleName</span> <span class="dt">Jud</span> [<span class="dt">Proof</span>]</a></code></pre></div>
+<div class="sourceCode" id="cb12"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb12-1" data-line-number="1"><span class="kw">data</span> <span class="dt">Proof</span></a>
+<a class="sourceLine" id="cb12-2" data-line-number="2">  <span class="fu">=</span> <span class="dt">Use</span> <span class="dt">Loc</span> <span class="dt">RuleName</span> <span class="dt">Jud</span> [<span class="dt">Proof</span>]</a>
+<a class="sourceLine" id="cb12-3" data-line-number="3">  <span class="fu">|</span> <span class="dt">Invoke</span> <span class="dt">Loc</span> <span class="dt">RuleName</span> <span class="dt">Jud</span> [<span class="dt">Proof</span>] (<span class="dt">Sub</span> <span class="dt">Jud</span>)</a></code></pre></div>
 <p>We will eventually need to have introduction and elimination rules for each judgement constructor. But many of these can be expressed in essentially the same way that we would express a theorem at the user level. For instance, the introduction rule for <span class="math inline">\(\wedge\)</span>. These are collectively handled by <code>Use</code>. Other rules will require special syntactic support, and these have to be built into the definition of proof. For example!</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb12-1" data-line-number="1">  <span class="fu">|</span> <span class="dt">Hyp</span> <span class="dt">Loc</span> <span class="dt">HypName</span> <span class="dt">Jud</span></a>
-<a class="sourceLine" id="cb12-2" data-line-number="2">  <span class="fu">|</span> <span class="dt">Dis</span> <span class="dt">Loc</span> <span class="dt">HypName</span> <span class="dt">Jud</span> <span class="dt">Proof</span></a></code></pre></div>
+<div class="sourceCode" id="cb13"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb13-1" data-line-number="1">  <span class="fu">|</span> <span class="dt">Hyp</span> <span class="dt">Loc</span> <span class="dt">HypName</span> <span class="dt">Jud</span></a>
+<a class="sourceLine" id="cb13-2" data-line-number="2">  <span class="fu">|</span> <span class="dt">Dis</span> <span class="dt">Loc</span> <span class="dt">HypName</span> <span class="dt">Jud</span> <span class="dt">Proof</span></a></code></pre></div>
 <p>The <code>Hyp</code>othesis and <code>Dis</code>charge proofs together comprise the introduction rule for <span class="math inline">\(\Rightarrow\)</span>, and have to be dealt with outside of the usual rule-matching strategy because they involve state. Typically discharging is explained something like this:</p>
 <p><span class="math display">\[\begin{array}{ccc}
  P \\
@@ -238,16 +242,16 @@ P &amp;            &amp; Q \\ \hline
  P \Rightarrow Q
 \end{array}\]</span></p>
 <p>The elipses are doing a lot of work here. The idea is that <span class="math inline">\(P\)</span> is introduced as a named hypothesis somewhere above <span class="math inline">\(Q\)</span>, and this is discharged as <span class="math inline">\(P \Rightarrow Q\)</span> but not before. The “but not before” part is the state; when validating a proof from the leaves to the root, we have to keep track of which hypotheses have been introduced and which have already been discharged.</p>
-<div class="sourceCode" id="cb13"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb13-1" data-line-number="1">  <span class="fu">|</span> <span class="dt">ElimEq</span> <span class="dt">Loc</span> <span class="dt">Jud</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="dt">Jud</span> <span class="dt">Proof</span> <span class="dt">Proof</span></a>
-<a class="sourceLine" id="cb13-2" data-line-number="2">  <span class="fu">|</span> <span class="dt">IntroEq</span> <span class="dt">Loc</span> <span class="dt">Jud</span></a></code></pre></div>
+<div class="sourceCode" id="cb14"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb14-1" data-line-number="1">  <span class="fu">|</span> <span class="dt">ElimEq</span> <span class="dt">Loc</span> <span class="dt">Jud</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="dt">Jud</span> <span class="dt">Proof</span> <span class="dt">Proof</span></a>
+<a class="sourceLine" id="cb14-2" data-line-number="2">  <span class="fu">|</span> <span class="dt">IntroEq</span> <span class="dt">Loc</span> <span class="dt">Jud</span></a></code></pre></div>
 <p>The <code>ElimEq</code> rule is what justifies substituting equals for equals in a judgement. Schematically it looks like this:</p>
 <p><span class="math display">\[\begin{array}{ccc}
 s = t &amp;                   &amp; \Phi[x \mapsto s] \\ \hline
       &amp; \Phi[x \mapsto t] &amp;
 \end{array}\]</span></p>
 <p>Where [square brackets] denote a substitution; <span class="math inline">\(\Phi[x \mapsto s]\)</span> is obtained by replacing all free occurrences of the expression variable <span class="math inline">\(x\)</span> in <span class="math inline">\(\Phi\)</span> by the expression <span class="math inline">\(s\)</span>. This substitution is not part of the judgement syntax itself, but rather a kind of metasyntax; that’s why this rule needs to be dealt with separately. <code>IntroEq</code> is the introduction rule for equality; it can be defined with <code>Use</code> (it doesn’t require any syntactic support) but it will be handy to build this into the syntax.</p>
-<div class="sourceCode" id="cb14"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb14-1" data-line-number="1">  <span class="fu">|</span> <span class="dt">IntroU</span> <span class="dt">Loc</span> <span class="dt">Jud</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="dt">Proof</span></a>
-<a class="sourceLine" id="cb14-2" data-line-number="2">  <span class="fu">|</span> <span class="dt">ElimU</span> <span class="dt">Loc</span> <span class="dt">Jud</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="dt">Expr</span> <span class="dt">Proof</span></a></code></pre></div>
+<div class="sourceCode" id="cb15"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb15-1" data-line-number="1">  <span class="fu">|</span> <span class="dt">IntroU</span> <span class="dt">Loc</span> <span class="dt">Jud</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="dt">Proof</span></a>
+<a class="sourceLine" id="cb15-2" data-line-number="2">  <span class="fu">|</span> <span class="dt">ElimU</span> <span class="dt">Loc</span> <span class="dt">Jud</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="dt">Expr</span> <span class="dt">Proof</span></a></code></pre></div>
 <p><code>IntroU</code> and <code>ElimU</code> are the introduction and elimination rules for universal quantifiers; these also need a special syntax because they come with <em>side conditions</em> on correctness. The introduction rule is schematically</p>
 <p><span class="math display">\[\begin{array}{c}
 \Phi \\ \hline
@@ -259,8 +263,8 @@ s = t &amp;                   &amp; \Phi[x \mapsto s] \\ \hline
 \Phi[x \mapsto u]
 \end{array}\]</span></p>
 <p>These side conditions are another kind of contextual state, which is why these need to be handled separately.</p>
-<div class="sourceCode" id="cb15"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb15-1" data-line-number="1">  <span class="fu">|</span> <span class="dt">IntroE</span> <span class="dt">Loc</span> <span class="dt">Jud</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="dt">Expr</span> <span class="dt">Proof</span></a>
-<a class="sourceLine" id="cb15-2" data-line-number="2">  <span class="fu">|</span> <span class="dt">ElimE</span> <span class="dt">Loc</span> <span class="dt">Jud</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="dt">Proof</span> <span class="dt">Proof</span></a></code></pre></div>
+<div class="sourceCode" id="cb16"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb16-1" data-line-number="1">  <span class="fu">|</span> <span class="dt">IntroE</span> <span class="dt">Loc</span> <span class="dt">Jud</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="dt">Expr</span> <span class="dt">Proof</span></a>
+<a class="sourceLine" id="cb16-2" data-line-number="2">  <span class="fu">|</span> <span class="dt">ElimE</span> <span class="dt">Loc</span> <span class="dt">Jud</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="dt">Proof</span> <span class="dt">Proof</span></a></code></pre></div>
 <p><code>IntroE</code> and <code>ElimE</code> are the introduction and elimination rules for existential quantifiers. Schematically, <code>IntroE</code> is</p>
 <p><span class="math display">\[\begin{array}{c}
 \Phi[u \mapsto e] \\ \hline
@@ -272,13 +276,6 @@ s = t &amp;                   &amp; \Phi[x \mapsto s] \\ \hline
  &amp; \Psi &amp;
 \end{array}\]</span></p>
 <p>with the side conditions that <span class="math inline">\(u\)</span> does not occur in <span class="math inline">\(\exists x . \Phi\)</span>, in <span class="math inline">\(\Psi\)</span>, or in any undischarged hypotheses or assumptions in the proof of <span class="math inline">\(\Phi[x \mapsto u] \Rightarrow \Psi\)</span>.</p>
-<div class="sourceCode" id="cb16"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb16-1" data-line-number="1">  <span class="fu">|</span> <span class="dt">Subst</span> <span class="dt">Loc</span> <span class="dt">Jud</span> (<span class="dt">Sub</span> <span class="dt">Expr</span>) <span class="dt">Proof</span></a></code></pre></div>
-<p>The <code>Subst</code>itution proof is a little different. Free variables in a proof denote a specific but arbitrary object. This is different from a variable bound by a forall, which denotes <em>every</em> object of the appropriate type. As such, it makes sense to perform substitutions on the free variables. Schematically, that looks something like this:</p>
-<p><span class="math display">\[\begin{array}{c}
-\Phi[S] \\ \hline
-S \cdot \Phi
-\end{array}\]</span></p>
-<p>Again, [square brackets] indicate a metasyntactic substitution; <span class="math inline">\(\Phi\)</span> is a judgement with (maybe) some free variables, and <span class="math inline">\(S \cdot \Phi\)</span> is the result of applying some substitution to <span class="math inline">\(\Phi\)</span>. Substitution is not really either an introduction or an elimination rule.</p>
 <div class="sourceCode" id="cb17"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb17-1" data-line-number="1">  <span class="fu">|</span> <span class="dt">Assume</span> <span class="dt">Loc</span> <span class="dt">Int</span> <span class="dt">Jud</span></a>
 <a class="sourceLine" id="cb17-2" data-line-number="2">  <span class="kw">deriving</span> (<span class="dt">Show</span>)</a></code></pre></div>
 <p>The final proof type is the assumption. Assumptions are similar to hypotheses in that they let us introduce a judgement with no explicit support. However, hypotheses must eventually be discharged, while assumptions are <em>never</em> discharged. To see the difference, suppose we were trying to prove a rule like the following.</p>
@@ -309,10 +306,10 @@ R &amp;                 &amp; Q \\ \hline
 <a class="sourceLine" id="cb18-18" data-line-number="18">      (q1 <span class="fu">==</span> q2) <span class="fu">&amp;&amp;</span> (x1 <span class="fu">==</span> x2) <span class="fu">&amp;&amp;</span> (e1 <span class="fu">==</span> e2) <span class="fu">&amp;&amp;</span> (p1 <span class="fu">==</span> p2)</a>
 <a class="sourceLine" id="cb18-19" data-line-number="19">    (<span class="dt">ElimE</span> _ q1 x1 y1 u1 v1, <span class="dt">ElimE</span> _ q2 x2 y2 u2 v2) <span class="ot">-&gt;</span></a>
 <a class="sourceLine" id="cb18-20" data-line-number="20">      (q1 <span class="fu">==</span> q2) <span class="fu">&amp;&amp;</span> (x1 <span class="fu">==</span> x2) <span class="fu">&amp;&amp;</span> (y1 <span class="fu">==</span> y2) <span class="fu">&amp;&amp;</span> (u1 <span class="fu">==</span> u2) <span class="fu">&amp;&amp;</span> (v1 <span class="fu">==</span> v2)</a>
-<a class="sourceLine" id="cb18-21" data-line-number="21">    (<span class="dt">Subst</span> _ q1 s1 p1, <span class="dt">Subst</span> _ q2 s2 p2) <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb18-22" data-line-number="22">      (q1 <span class="fu">==</span> q2) <span class="fu">&amp;&amp;</span> (s1 <span class="fu">==</span> s2) <span class="fu">&amp;&amp;</span> (p1 <span class="fu">==</span> p2)</a>
-<a class="sourceLine" id="cb18-23" data-line-number="23">    (<span class="dt">Use</span> _ n1 q1 p1, <span class="dt">Use</span> _ n2 q2 p2) <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb18-24" data-line-number="24">      (n1 <span class="fu">==</span> n2) <span class="fu">&amp;&amp;</span> (q1 <span class="fu">==</span> q2) <span class="fu">&amp;&amp;</span> (p1 <span class="fu">==</span> p2)</a>
+<a class="sourceLine" id="cb18-21" data-line-number="21">    (<span class="dt">Use</span> _ n1 q1 p1, <span class="dt">Use</span> _ n2 q2 p2) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb18-22" data-line-number="22">      (n1 <span class="fu">==</span> n2) <span class="fu">&amp;&amp;</span> (q1 <span class="fu">==</span> q2) <span class="fu">&amp;&amp;</span> (p1 <span class="fu">==</span> p2)</a>
+<a class="sourceLine" id="cb18-23" data-line-number="23">    (<span class="dt">Invoke</span> _ n1 q1 p1 t1, <span class="dt">Invoke</span> _ n2 q2 p2 t2) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb18-24" data-line-number="24">      (n1 <span class="fu">==</span> n2) <span class="fu">&amp;&amp;</span> (q1 <span class="fu">==</span> q2) <span class="fu">&amp;&amp;</span> (p1 <span class="fu">==</span> p2) <span class="fu">&amp;&amp;</span> (t1 <span class="fu">==</span> t2)</a>
 <a class="sourceLine" id="cb18-25" data-line-number="25">    _ <span class="ot">-&gt;</span> <span class="dt">False</span></a></code></pre></div>
 <p>And here’s an <code>Arbitrary</code> instance.</p>
 <div class="sourceCode" id="cb19"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb19-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">Arbitrary</span> <span class="dt">Proof</span> <span class="kw">where</span></a>
@@ -324,25 +321,25 @@ R &amp;                 &amp; Q \\ \hline
 <a class="sourceLine" id="cb19-7" data-line-number="7">            , <span class="dt">Hyp</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
 <a class="sourceLine" id="cb19-8" data-line-number="8">            ]</a>
 <a class="sourceLine" id="cb19-9" data-line-number="9">        <span class="fu">|</span> otherwise <span class="fu">=</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb19-10" data-line-number="10">            <span class="kw">let</span> recur <span class="fu">=</span> genDepth <span class="fu">=&lt;&lt;</span> elements [<span class="dv">0</span><span class="fu">..</span>(k<span class="fu">-</span><span class="dv">1</span>)]</a>
+<a class="sourceLine" id="cb19-10" data-line-number="10">            <span class="kw">let</span> recur <span class="fu">=</span> genDepth <span class="fu">=&lt;&lt;</span> elements [<span class="dv">0</span><span class="fu">..</span>(div k <span class="dv">2</span>)]</a>
 <a class="sourceLine" id="cb19-11" data-line-number="11">            oneof</a>
 <a class="sourceLine" id="cb19-12" data-line-number="12">              [ <span class="dt">Dis</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
 <a class="sourceLine" id="cb19-13" data-line-number="13">                  <span class="fu">&lt;*&gt;</span> recur</a>
 <a class="sourceLine" id="cb19-14" data-line-number="14">              , <span class="dt">IntroEq</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
 <a class="sourceLine" id="cb19-15" data-line-number="15">              , <span class="dt">ElimEq</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
 <a class="sourceLine" id="cb19-16" data-line-number="16">                  <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> recur <span class="fu">&lt;*&gt;</span> recur</a>
-<a class="sourceLine" id="cb19-17" data-line-number="17">              , <span class="dt">Subst</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
-<a class="sourceLine" id="cb19-18" data-line-number="18">                  <span class="fu">&lt;*&gt;</span> recur</a>
-<a class="sourceLine" id="cb19-19" data-line-number="19">              , <span class="dt">IntroU</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
+<a class="sourceLine" id="cb19-17" data-line-number="17">              , <span class="dt">IntroU</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
+<a class="sourceLine" id="cb19-18" data-line-number="18">                  <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> recur</a>
+<a class="sourceLine" id="cb19-19" data-line-number="19">              , <span class="dt">ElimU</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
 <a class="sourceLine" id="cb19-20" data-line-number="20">                  <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> recur</a>
-<a class="sourceLine" id="cb19-21" data-line-number="21">              , <span class="dt">ElimU</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
+<a class="sourceLine" id="cb19-21" data-line-number="21">              , <span class="dt">IntroE</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
 <a class="sourceLine" id="cb19-22" data-line-number="22">                  <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> recur</a>
-<a class="sourceLine" id="cb19-23" data-line-number="23">              , <span class="dt">IntroE</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
-<a class="sourceLine" id="cb19-24" data-line-number="24">                  <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> recur</a>
-<a class="sourceLine" id="cb19-25" data-line-number="25">              , <span class="dt">ElimE</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
-<a class="sourceLine" id="cb19-26" data-line-number="26">                  <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> recur <span class="fu">&lt;*&gt;</span> recur</a>
-<a class="sourceLine" id="cb19-27" data-line-number="27">              , <span class="dt">Use</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
-<a class="sourceLine" id="cb19-28" data-line-number="28">                  <span class="fu">&lt;*&gt;</span> listOf recur</a>
+<a class="sourceLine" id="cb19-23" data-line-number="23">              , <span class="dt">ElimE</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
+<a class="sourceLine" id="cb19-24" data-line-number="24">                  <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> recur <span class="fu">&lt;*&gt;</span> recur</a>
+<a class="sourceLine" id="cb19-25" data-line-number="25">              , <span class="dt">Use</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
+<a class="sourceLine" id="cb19-26" data-line-number="26">                  <span class="fu">&lt;*&gt;</span> listOf recur</a>
+<a class="sourceLine" id="cb19-27" data-line-number="27">              , <span class="dt">Invoke</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
+<a class="sourceLine" id="cb19-28" data-line-number="28">                  <span class="fu">&lt;*&gt;</span> listOf recur <span class="fu">&lt;*&gt;</span> (return emptySub)</a>
 <a class="sourceLine" id="cb19-29" data-line-number="29">              ]</a>
 <a class="sourceLine" id="cb19-30" data-line-number="30"></a>
 <a class="sourceLine" id="cb19-31" data-line-number="31">  shrink <span class="fu">=</span> \<span class="kw">case</span></a>
@@ -359,30 +356,30 @@ R &amp;                 &amp; Q \\ \hline
 <a class="sourceLine" id="cb19-42" data-line-number="42">      [ p, q ] <span class="fu">++</span></a>
 <a class="sourceLine" id="cb19-43" data-line-number="43">      [ <span class="dt">ElimEq</span> loc u&#39; x v&#39; p&#39; q&#39; <span class="fu">|</span></a>
 <a class="sourceLine" id="cb19-44" data-line-number="44">        u&#39; <span class="ot">&lt;-</span> shrink u, v&#39; <span class="ot">&lt;-</span> shrink v, p&#39; <span class="ot">&lt;-</span> shrink p, q&#39; <span class="ot">&lt;-</span> shrink q ]</a>
-<a class="sourceLine" id="cb19-45" data-line-number="45">    <span class="dt">Subst</span> loc w s p <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb19-45" data-line-number="45">    <span class="dt">IntroU</span> loc q x y p <span class="ot">-&gt;</span></a>
 <a class="sourceLine" id="cb19-46" data-line-number="46">      [ p ] <span class="fu">++</span></a>
-<a class="sourceLine" id="cb19-47" data-line-number="47">      [ <span class="dt">Subst</span> loc w&#39; s&#39; p&#39; <span class="fu">|</span></a>
-<a class="sourceLine" id="cb19-48" data-line-number="48">        w&#39; <span class="ot">&lt;-</span> shrink w, s&#39; <span class="ot">&lt;-</span> shrink s, p&#39; <span class="ot">&lt;-</span> shrink p ]</a>
-<a class="sourceLine" id="cb19-49" data-line-number="49">    <span class="dt">IntroU</span> loc q x y p <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb19-47" data-line-number="47">      [ <span class="dt">IntroU</span> loc q&#39; x y p&#39; <span class="fu">|</span></a>
+<a class="sourceLine" id="cb19-48" data-line-number="48">        q&#39; <span class="ot">&lt;-</span> shrink q, p&#39; <span class="ot">&lt;-</span> shrink p ]</a>
+<a class="sourceLine" id="cb19-49" data-line-number="49">    <span class="dt">ElimU</span> loc q x e p <span class="ot">-&gt;</span></a>
 <a class="sourceLine" id="cb19-50" data-line-number="50">      [ p ] <span class="fu">++</span></a>
-<a class="sourceLine" id="cb19-51" data-line-number="51">      [ <span class="dt">IntroU</span> loc q&#39; x y p&#39; <span class="fu">|</span></a>
-<a class="sourceLine" id="cb19-52" data-line-number="52">        q&#39; <span class="ot">&lt;-</span> shrink q, p&#39; <span class="ot">&lt;-</span> shrink p ]</a>
-<a class="sourceLine" id="cb19-53" data-line-number="53">    <span class="dt">ElimU</span> loc q x e p <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb19-51" data-line-number="51">      [ <span class="dt">ElimU</span> loc q&#39; x e&#39; p&#39; <span class="fu">|</span></a>
+<a class="sourceLine" id="cb19-52" data-line-number="52">        q&#39; <span class="ot">&lt;-</span> shrink q, e&#39; <span class="ot">&lt;-</span> shrink e, p&#39; <span class="ot">&lt;-</span> shrink p ]</a>
+<a class="sourceLine" id="cb19-53" data-line-number="53">    <span class="dt">IntroE</span> loc q x y p <span class="ot">-&gt;</span></a>
 <a class="sourceLine" id="cb19-54" data-line-number="54">      [ p ] <span class="fu">++</span></a>
-<a class="sourceLine" id="cb19-55" data-line-number="55">      [ <span class="dt">ElimU</span> loc q&#39; x e&#39; p&#39; <span class="fu">|</span></a>
-<a class="sourceLine" id="cb19-56" data-line-number="56">        q&#39; <span class="ot">&lt;-</span> shrink q, e&#39; <span class="ot">&lt;-</span> shrink e, p&#39; <span class="ot">&lt;-</span> shrink p ]</a>
-<a class="sourceLine" id="cb19-57" data-line-number="57">    <span class="dt">IntroE</span> loc q x y p <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb19-55" data-line-number="55">      [ <span class="dt">IntroE</span> loc q&#39; x y p&#39; <span class="fu">|</span></a>
+<a class="sourceLine" id="cb19-56" data-line-number="56">        q&#39; <span class="ot">&lt;-</span> shrink q, p&#39; <span class="ot">&lt;-</span> shrink p ]</a>
+<a class="sourceLine" id="cb19-57" data-line-number="57">    <span class="dt">ElimE</span> loc q x e p u <span class="ot">-&gt;</span></a>
 <a class="sourceLine" id="cb19-58" data-line-number="58">      [ p ] <span class="fu">++</span></a>
-<a class="sourceLine" id="cb19-59" data-line-number="59">      [ <span class="dt">IntroE</span> loc q&#39; x y p&#39; <span class="fu">|</span></a>
-<a class="sourceLine" id="cb19-60" data-line-number="60">        q&#39; <span class="ot">&lt;-</span> shrink q, p&#39; <span class="ot">&lt;-</span> shrink p ]</a>
-<a class="sourceLine" id="cb19-61" data-line-number="61">    <span class="dt">ElimE</span> loc q x e p u <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb19-62" data-line-number="62">      [ p ] <span class="fu">++</span></a>
-<a class="sourceLine" id="cb19-63" data-line-number="63">      [ <span class="dt">ElimE</span> loc q&#39; x e&#39; p&#39; u&#39; <span class="fu">|</span></a>
-<a class="sourceLine" id="cb19-64" data-line-number="64">        q&#39; <span class="ot">&lt;-</span> shrink q, e&#39; <span class="ot">&lt;-</span> shrink e, p&#39; <span class="ot">&lt;-</span> shrink p, u&#39; <span class="ot">&lt;-</span> shrink u ]</a>
-<a class="sourceLine" id="cb19-65" data-line-number="65">    <span class="dt">Use</span> loc name p ps <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb19-59" data-line-number="59">      [ <span class="dt">ElimE</span> loc q&#39; x e&#39; p&#39; u&#39; <span class="fu">|</span></a>
+<a class="sourceLine" id="cb19-60" data-line-number="60">        q&#39; <span class="ot">&lt;-</span> shrink q, e&#39; <span class="ot">&lt;-</span> shrink e, p&#39; <span class="ot">&lt;-</span> shrink p, u&#39; <span class="ot">&lt;-</span> shrink u ]</a>
+<a class="sourceLine" id="cb19-61" data-line-number="61">    <span class="dt">Use</span> loc name p ps <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb19-62" data-line-number="62">      ps <span class="fu">++</span></a>
+<a class="sourceLine" id="cb19-63" data-line-number="63">      [ <span class="dt">Use</span> loc name p&#39; ps&#39; <span class="fu">|</span></a>
+<a class="sourceLine" id="cb19-64" data-line-number="64">        p&#39; <span class="ot">&lt;-</span> shrink p, ps&#39; <span class="ot">&lt;-</span> shrink ps ]</a>
+<a class="sourceLine" id="cb19-65" data-line-number="65">    <span class="dt">Invoke</span> loc name p ps t <span class="ot">-&gt;</span></a>
 <a class="sourceLine" id="cb19-66" data-line-number="66">      ps <span class="fu">++</span></a>
-<a class="sourceLine" id="cb19-67" data-line-number="67">      [ <span class="dt">Use</span> loc name p&#39; ps&#39; <span class="fu">|</span></a>
-<a class="sourceLine" id="cb19-68" data-line-number="68">        p&#39; <span class="ot">&lt;-</span> shrink p, ps&#39; <span class="ot">&lt;-</span> shrink ps ]</a></code></pre></div>
+<a class="sourceLine" id="cb19-67" data-line-number="67">      [ <span class="dt">Invoke</span> loc name p&#39; ps&#39; t&#39; <span class="fu">|</span></a>
+<a class="sourceLine" id="cb19-68" data-line-number="68">        p&#39; <span class="ot">&lt;-</span> shrink p, ps&#39; <span class="ot">&lt;-</span> shrink ps, t&#39; <span class="ot">&lt;-</span> shrink t ]</a></code></pre></div>
 <h2 id="verification">Verification</h2>
 <p>We’ve defined what a proof is; now let’s tackle what it means for a proof to be valid.</p>
 <p>Proof checking requires dealing with effects of a few kinds.</p>
@@ -489,33 +486,34 @@ R &amp;                 &amp; Q \\ \hline
 <a class="sourceLine" id="cb26-2" data-line-number="2">  <span class="fu">=</span> <span class="dt">HypAlreadyDefined</span> <span class="dt">HypName</span> <span class="dt">Jud</span></a>
 <a class="sourceLine" id="cb26-3" data-line-number="3">  <span class="fu">|</span> <span class="dt">HypNotFound</span> <span class="dt">HypName</span></a>
 <a class="sourceLine" id="cb26-4" data-line-number="4">  <span class="fu">|</span> <span class="dt">HypNotDischarged</span> [<span class="dt">HypName</span>]</a>
-<a class="sourceLine" id="cb26-5" data-line-number="5">  <span class="fu">|</span> <span class="dt">MalformedDischarge</span> <span class="dt">Loc</span> <span class="dt">Jud</span></a>
+<a class="sourceLine" id="cb26-5" data-line-number="5">  <span class="fu">|</span> <span class="dt">MalformedDischarge</span> <span class="dt">Loc</span> <span class="dt">Jud</span> <span class="dt">Jud</span></a>
 <a class="sourceLine" id="cb26-6" data-line-number="6">  <span class="fu">|</span> <span class="dt">BadSubstitution</span> (<span class="dt">Sub</span> <span class="dt">Expr</span>)</a>
 <a class="sourceLine" id="cb26-7" data-line-number="7">  <span class="fu">|</span> <span class="dt">RuleNotFound</span> <span class="dt">RuleName</span></a>
 <a class="sourceLine" id="cb26-8" data-line-number="8">  <span class="fu">|</span> <span class="dt">MalformedSubstitution</span> <span class="dt">Loc</span></a>
 <a class="sourceLine" id="cb26-9" data-line-number="9">  <span class="fu">|</span> <span class="dt">RuleDoesNotMatch</span> <span class="dt">Loc</span> <span class="dt">RuleName</span> <span class="dt">Rule</span> [<span class="dt">Jud</span>]</a>
-<a class="sourceLine" id="cb26-10" data-line-number="10">  <span class="fu">|</span> <span class="dt">ReusedAssumptions</span> (<span class="dt">S.Set</span> <span class="dt">Int</span>)</a>
-<a class="sourceLine" id="cb26-11" data-line-number="11">  <span class="fu">|</span> <span class="dt">ProofDoesNotMatch</span> <span class="dt">Rule</span> <span class="dt">Jud</span> [<span class="dt">Jud</span>]</a>
-<a class="sourceLine" id="cb26-12" data-line-number="12">  <span class="fu">|</span> <span class="dt">RuleAlreadyDefined</span> <span class="dt">RuleName</span></a>
-<a class="sourceLine" id="cb26-13" data-line-number="13">  <span class="fu">|</span> <span class="dt">TypeAlreadyDefined</span> <span class="dt">PolyType</span></a>
-<a class="sourceLine" id="cb26-14" data-line-number="14">  <span class="fu">|</span> <span class="dt">FreeVariableInPremise</span> <span class="dt">Loc</span> (<span class="dt">Var</span> <span class="dt">Expr</span>)</a>
-<a class="sourceLine" id="cb26-15" data-line-number="15">  <span class="fu">|</span> <span class="dt">BindingFreeVar</span> <span class="dt">Loc</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="dt">Jud</span></a>
-<a class="sourceLine" id="cb26-16" data-line-number="16">  <span class="fu">|</span> <span class="dt">EqExpected</span> <span class="dt">Loc</span></a>
-<a class="sourceLine" id="cb26-17" data-line-number="17">  <span class="fu">|</span> <span class="dt">NotEqual</span> <span class="dt">Loc</span></a>
-<a class="sourceLine" id="cb26-18" data-line-number="18">  <span class="fu">|</span> <span class="dt">BadEqSubstitutionRHS</span> <span class="dt">Loc</span></a>
-<a class="sourceLine" id="cb26-19" data-line-number="19">  <span class="fu">|</span> <span class="dt">BadEqSubstitutionLHS</span> <span class="dt">Loc</span></a>
-<a class="sourceLine" id="cb26-20" data-line-number="20">  <span class="fu">|</span> <span class="dt">MalformedIntroU</span> <span class="dt">Loc</span></a>
-<a class="sourceLine" id="cb26-21" data-line-number="21">  <span class="fu">|</span> <span class="dt">MalformedElimU</span> <span class="dt">Loc</span></a>
-<a class="sourceLine" id="cb26-22" data-line-number="22">  <span class="fu">|</span> <span class="dt">MalformedIntroE</span> <span class="dt">Loc</span></a>
-<a class="sourceLine" id="cb26-23" data-line-number="23">  <span class="fu">|</span> <span class="dt">SomeVarMismatch</span> <span class="dt">Loc</span></a>
-<a class="sourceLine" id="cb26-24" data-line-number="24">  <span class="fu">|</span> <span class="dt">SomeSubMismatch</span> <span class="dt">Loc</span></a>
-<a class="sourceLine" id="cb26-25" data-line-number="25">  <span class="fu">|</span> <span class="dt">AllExpected</span> <span class="dt">Loc</span></a>
-<a class="sourceLine" id="cb26-26" data-line-number="26">  <span class="fu">|</span> <span class="dt">MalformedElimE</span> <span class="dt">Loc</span></a>
-<a class="sourceLine" id="cb26-27" data-line-number="27">  <span class="fu">|</span> <span class="dt">ElimEBindVar</span> <span class="dt">Loc</span></a>
-<a class="sourceLine" id="cb26-28" data-line-number="28">  <span class="fu">|</span> <span class="dt">AllVarMismatch</span> <span class="dt">Loc</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) (<span class="dt">Var</span> <span class="dt">Expr</span>)</a>
-<a class="sourceLine" id="cb26-29" data-line-number="29">  <span class="fu">|</span> <span class="dt">TypeUnificationError</span> <span class="dt">UnificationError</span></a>
-<a class="sourceLine" id="cb26-30" data-line-number="30">  <span class="fu">|</span> <span class="dt">InferenceError</span> <span class="dt">TypeError</span></a>
-<a class="sourceLine" id="cb26-31" data-line-number="31">  <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>)</a></code></pre></div>
+<a class="sourceLine" id="cb26-10" data-line-number="10">  <span class="fu">|</span> <span class="dt">InvokeDoesNotMatch</span> <span class="dt">Loc</span> <span class="dt">RuleName</span> <span class="dt">Rule</span> <span class="dt">Rule</span> [<span class="dt">Jud</span>]</a>
+<a class="sourceLine" id="cb26-11" data-line-number="11">  <span class="fu">|</span> <span class="dt">ReusedAssumptions</span> (<span class="dt">S.Set</span> <span class="dt">Int</span>)</a>
+<a class="sourceLine" id="cb26-12" data-line-number="12">  <span class="fu">|</span> <span class="dt">ProofDoesNotMatch</span> <span class="dt">Rule</span> <span class="dt">Jud</span> [<span class="dt">Jud</span>]</a>
+<a class="sourceLine" id="cb26-13" data-line-number="13">  <span class="fu">|</span> <span class="dt">RuleAlreadyDefined</span> <span class="dt">RuleName</span></a>
+<a class="sourceLine" id="cb26-14" data-line-number="14">  <span class="fu">|</span> <span class="dt">TypeAlreadyDefined</span> <span class="dt">PolyType</span></a>
+<a class="sourceLine" id="cb26-15" data-line-number="15">  <span class="fu">|</span> <span class="dt">FreeVariableInPremise</span> <span class="dt">Loc</span> (<span class="dt">Var</span> <span class="dt">Expr</span>)</a>
+<a class="sourceLine" id="cb26-16" data-line-number="16">  <span class="fu">|</span> <span class="dt">BindingFreeVar</span> <span class="dt">Loc</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="dt">Jud</span></a>
+<a class="sourceLine" id="cb26-17" data-line-number="17">  <span class="fu">|</span> <span class="dt">EqExpected</span> <span class="dt">Loc</span></a>
+<a class="sourceLine" id="cb26-18" data-line-number="18">  <span class="fu">|</span> <span class="dt">NotEqual</span> <span class="dt">Loc</span></a>
+<a class="sourceLine" id="cb26-19" data-line-number="19">  <span class="fu">|</span> <span class="dt">BadEqSubstitutionRHS</span> <span class="dt">Loc</span></a>
+<a class="sourceLine" id="cb26-20" data-line-number="20">  <span class="fu">|</span> <span class="dt">BadEqSubstitutionLHS</span> <span class="dt">Loc</span></a>
+<a class="sourceLine" id="cb26-21" data-line-number="21">  <span class="fu">|</span> <span class="dt">MalformedIntroU</span> <span class="dt">Loc</span></a>
+<a class="sourceLine" id="cb26-22" data-line-number="22">  <span class="fu">|</span> <span class="dt">MalformedElimU</span> <span class="dt">Loc</span></a>
+<a class="sourceLine" id="cb26-23" data-line-number="23">  <span class="fu">|</span> <span class="dt">MalformedIntroE</span> <span class="dt">Loc</span></a>
+<a class="sourceLine" id="cb26-24" data-line-number="24">  <span class="fu">|</span> <span class="dt">SomeVarMismatch</span> <span class="dt">Loc</span></a>
+<a class="sourceLine" id="cb26-25" data-line-number="25">  <span class="fu">|</span> <span class="dt">SomeSubMismatch</span> <span class="dt">Loc</span></a>
+<a class="sourceLine" id="cb26-26" data-line-number="26">  <span class="fu">|</span> <span class="dt">AllExpected</span> <span class="dt">Loc</span></a>
+<a class="sourceLine" id="cb26-27" data-line-number="27">  <span class="fu">|</span> <span class="dt">MalformedElimE</span> <span class="dt">Loc</span></a>
+<a class="sourceLine" id="cb26-28" data-line-number="28">  <span class="fu">|</span> <span class="dt">ElimEBindVar</span> <span class="dt">Loc</span></a>
+<a class="sourceLine" id="cb26-29" data-line-number="29">  <span class="fu">|</span> <span class="dt">AllVarMismatch</span> <span class="dt">Loc</span> (<span class="dt">Var</span> <span class="dt">Expr</span>) (<span class="dt">Var</span> <span class="dt">Expr</span>) <span class="dt">Jud</span> <span class="dt">Proof</span></a>
+<a class="sourceLine" id="cb26-30" data-line-number="30">  <span class="fu">|</span> <span class="dt">TypeUnificationError</span> <span class="dt">Loc</span> <span class="dt">UnificationError</span></a>
+<a class="sourceLine" id="cb26-31" data-line-number="31">  <span class="fu">|</span> <span class="dt">InferenceError</span> <span class="dt">Loc</span> <span class="dt">TypeError</span></a>
+<a class="sourceLine" id="cb26-32" data-line-number="32">  <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>)</a></code></pre></div>
 <p>A helper for adding a new hypothesis to the environment, making sure its name is unique:</p>
 <div class="sourceCode" id="cb27"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb27-1" data-line-number="1"><span class="ot">introHyp ::</span> <span class="dt">HypName</span> <span class="ot">-&gt;</span> <span class="dt">Jud</span> <span class="ot">-&gt;</span> <span class="dt">Check</span> ()</a>
 <a class="sourceLine" id="cb27-2" data-line-number="2">introHyp name p <span class="fu">=</span> <span class="dt">Check</span> <span class="fu">$</span> \(_, <span class="dt">HypEnv</span> hs) <span class="ot">-&gt;</span></a>
@@ -570,7 +568,7 @@ R &amp;                 &amp; Q \\ \hline
 <a class="sourceLine" id="cb34-3" data-line-number="3">    p <span class="ot">&lt;-</span> dischargeHyp name</a>
 <a class="sourceLine" id="cb34-4" data-line-number="4">    <span class="kw">if</span> w <span class="fu">==</span> (<span class="dt">JImpl</span> <span class="dt">Q</span> p q)</a>
 <a class="sourceLine" id="cb34-5" data-line-number="5">      <span class="kw">then</span> return (<span class="dt">JImpl</span> <span class="dt">Q</span> p q)</a>
-<a class="sourceLine" id="cb34-6" data-line-number="6">      <span class="kw">else</span> checkError <span class="fu">$</span> <span class="dt">MalformedDischarge</span> loc w</a></code></pre></div>
+<a class="sourceLine" id="cb34-6" data-line-number="6">      <span class="kw">else</span> checkError <span class="fu">$</span> <span class="dt">MalformedDischarge</span> loc w (<span class="dt">JImpl</span> <span class="dt">Q</span> p q)</a></code></pre></div>
 <p>To check a discharge proof, we recursively check its child proof and look up and discharge the corresponding hypothesis before returning an implication judgement.</p>
 <div class="sourceCode" id="cb35"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb35-1" data-line-number="1">  <span class="dt">ElimEq</span> loc w x p pe pf <span class="ot">-&gt;</span> <span class="kw">do</span></a>
 <a class="sourceLine" id="cb35-2" data-line-number="2">    eq <span class="ot">&lt;-</span> checkProof pe</a>
@@ -591,63 +589,64 @@ R &amp;                 &amp; Q \\ \hline
 <a class="sourceLine" id="cb35-17" data-line-number="17">        <span class="kw">else</span> checkError <span class="fu">$</span> <span class="dt">NotEqual</span> loc</a>
 <a class="sourceLine" id="cb35-18" data-line-number="18">      _ <span class="ot">-&gt;</span> checkError <span class="fu">$</span> <span class="dt">EqExpected</span> loc</a></code></pre></div>
 <p>The equality elimination and introduction rules need to ensure we’ve given proofs of the correct form.</p>
-<div class="sourceCode" id="cb36"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb36-1" data-line-number="1">  <span class="dt">Subst</span> loc w s pf <span class="ot">-&gt;</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb36-2" data-line-number="2">    q <span class="ot">&lt;-</span> checkProof pf</a>
-<a class="sourceLine" id="cb36-3" data-line-number="3">    <span class="kw">if</span> w <span class="fu">==</span> s <span class="fu">$&gt;</span> q</a>
-<a class="sourceLine" id="cb36-4" data-line-number="4">      <span class="kw">then</span> return (s <span class="fu">$&gt;</span> q)</a>
-<a class="sourceLine" id="cb36-5" data-line-number="5">      <span class="kw">else</span> checkError <span class="fu">$</span> <span class="dt">MalformedSubstitution</span> loc</a></code></pre></div>
-<p>The substitution proof just checks syntactic equality.</p>
-<div class="sourceCode" id="cb37"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb37-1" data-line-number="1">  <span class="dt">IntroU</span> loc w x y pf <span class="ot">-&gt;</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb37-2" data-line-number="2">    q <span class="ot">&lt;-</span> unusedInHyp loc x <span class="fu">$</span> checkProof pf</a>
-<a class="sourceLine" id="cb37-3" data-line-number="3">    <span class="kw">if</span> S.member y (freeExprVars q)</a>
-<a class="sourceLine" id="cb37-4" data-line-number="4">      <span class="kw">then</span> checkError <span class="fu">$</span> <span class="dt">BindingFreeVar</span> loc y q</a>
-<a class="sourceLine" id="cb37-5" data-line-number="5">      <span class="kw">else</span> <span class="kw">if</span> w <span class="fu">==</span> <span class="dt">JAll</span> loc y ((x <span class="fu">--&gt;</span> <span class="dt">EVar</span> loc y) <span class="fu">$&gt;</span> q)</a>
-<a class="sourceLine" id="cb37-6" data-line-number="6">        <span class="kw">then</span> return <span class="fu">$</span> <span class="dt">JAll</span> loc y ((x <span class="fu">--&gt;</span> <span class="dt">EVar</span> loc y) <span class="fu">$&gt;</span> q)</a>
-<a class="sourceLine" id="cb37-7" data-line-number="7">        <span class="kw">else</span> checkError <span class="fu">$</span> <span class="dt">MalformedIntroU</span> loc</a>
-<a class="sourceLine" id="cb37-8" data-line-number="8"></a>
-<a class="sourceLine" id="cb37-9" data-line-number="9">  <span class="dt">ElimU</span> loc w x e pf <span class="ot">-&gt;</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb37-10" data-line-number="10">    q <span class="ot">&lt;-</span> checkProof pf</a>
-<a class="sourceLine" id="cb37-11" data-line-number="11">    <span class="kw">case</span> q <span class="kw">of</span></a>
-<a class="sourceLine" id="cb37-12" data-line-number="12">      <span class="dt">JAll</span> _ z p <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb37-13" data-line-number="13">        <span class="kw">if</span> x <span class="fu">==</span> z</a>
-<a class="sourceLine" id="cb37-14" data-line-number="14">          <span class="kw">then</span> <span class="kw">if</span> w <span class="fu">==</span> (x <span class="fu">--&gt;</span> e) <span class="fu">$&gt;</span> p</a>
-<a class="sourceLine" id="cb37-15" data-line-number="15">            <span class="kw">then</span> return <span class="fu">$</span> (x <span class="fu">--&gt;</span> e) <span class="fu">$&gt;</span> p</a>
-<a class="sourceLine" id="cb37-16" data-line-number="16">            <span class="kw">else</span> checkError <span class="fu">$</span> <span class="dt">MalformedElimU</span> loc</a>
-<a class="sourceLine" id="cb37-17" data-line-number="17">          <span class="kw">else</span> checkError <span class="fu">$</span> <span class="dt">AllVarMismatch</span> loc x z</a>
-<a class="sourceLine" id="cb37-18" data-line-number="18">      _ <span class="ot">-&gt;</span> checkError <span class="fu">$</span> <span class="dt">AllExpected</span> loc</a></code></pre></div>
+<div class="sourceCode" id="cb36"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb36-1" data-line-number="1">  <span class="dt">IntroU</span> loc w x y pf <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb36-2" data-line-number="2">    q <span class="ot">&lt;-</span> unusedInHyp loc x <span class="fu">$</span> checkProof pf</a>
+<a class="sourceLine" id="cb36-3" data-line-number="3">    <span class="kw">if</span> S.member y (freeExprVars q)</a>
+<a class="sourceLine" id="cb36-4" data-line-number="4">      <span class="kw">then</span> checkError <span class="fu">$</span> <span class="dt">BindingFreeVar</span> loc y q</a>
+<a class="sourceLine" id="cb36-5" data-line-number="5">      <span class="kw">else</span> <span class="kw">if</span> w <span class="fu">==</span> <span class="dt">JAll</span> loc y ((x <span class="fu">--&gt;</span> <span class="dt">EVar</span> loc y) <span class="fu">$&gt;</span> q)</a>
+<a class="sourceLine" id="cb36-6" data-line-number="6">        <span class="kw">then</span> return <span class="fu">$</span> <span class="dt">JAll</span> loc y ((x <span class="fu">--&gt;</span> <span class="dt">EVar</span> loc y) <span class="fu">$&gt;</span> q)</a>
+<a class="sourceLine" id="cb36-7" data-line-number="7">        <span class="kw">else</span> checkError <span class="fu">$</span> <span class="dt">MalformedIntroU</span> loc</a>
+<a class="sourceLine" id="cb36-8" data-line-number="8"></a>
+<a class="sourceLine" id="cb36-9" data-line-number="9">  <span class="dt">ElimU</span> loc w x e pf <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb36-10" data-line-number="10">    q <span class="ot">&lt;-</span> checkProof pf</a>
+<a class="sourceLine" id="cb36-11" data-line-number="11">    <span class="kw">case</span> q <span class="kw">of</span></a>
+<a class="sourceLine" id="cb36-12" data-line-number="12">      <span class="dt">JAll</span> _ z p <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb36-13" data-line-number="13">        <span class="kw">if</span> z <span class="fu">==</span> z</a>
+<a class="sourceLine" id="cb36-14" data-line-number="14">          <span class="kw">then</span> <span class="kw">if</span> w <span class="fu">==</span> (z <span class="fu">--&gt;</span> e) <span class="fu">$&gt;</span> p</a>
+<a class="sourceLine" id="cb36-15" data-line-number="15">            <span class="kw">then</span> return <span class="fu">$</span> (z <span class="fu">--&gt;</span> e) <span class="fu">$&gt;</span> p</a>
+<a class="sourceLine" id="cb36-16" data-line-number="16">            <span class="kw">else</span> checkError <span class="fu">$</span> <span class="dt">MalformedElimU</span> loc</a>
+<a class="sourceLine" id="cb36-17" data-line-number="17">          <span class="kw">else</span> checkError <span class="fu">$</span> <span class="dt">AllVarMismatch</span> loc x z w pf</a>
+<a class="sourceLine" id="cb36-18" data-line-number="18">      _ <span class="ot">-&gt;</span> checkError <span class="fu">$</span> <span class="dt">AllExpected</span> loc</a></code></pre></div>
 <p>The universal introduction and elimination rules need to check their respective side conditions.</p>
-<div class="sourceCode" id="cb38"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb38-1" data-line-number="1">  <span class="dt">IntroE</span> loc w x e pf <span class="ot">-&gt;</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb38-2" data-line-number="2">    q <span class="ot">&lt;-</span> checkProof pf</a>
-<a class="sourceLine" id="cb38-3" data-line-number="3">    <span class="kw">case</span> w <span class="kw">of</span></a>
-<a class="sourceLine" id="cb38-4" data-line-number="4">      <span class="dt">JSome</span> _ y p <span class="ot">-&gt;</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb38-5" data-line-number="5">        <span class="kw">if</span> x <span class="fu">==</span> y</a>
-<a class="sourceLine" id="cb38-6" data-line-number="6">          <span class="kw">then</span> <span class="kw">if</span> q <span class="fu">==</span> (x <span class="fu">--&gt;</span> e) <span class="fu">$&gt;</span> p</a>
-<a class="sourceLine" id="cb38-7" data-line-number="7">            <span class="kw">then</span> return w</a>
-<a class="sourceLine" id="cb38-8" data-line-number="8">            <span class="kw">else</span> checkError <span class="fu">$</span> <span class="dt">SomeSubMismatch</span> loc</a>
-<a class="sourceLine" id="cb38-9" data-line-number="9">          <span class="kw">else</span> checkError <span class="fu">$</span> <span class="dt">SomeVarMismatch</span> loc</a>
-<a class="sourceLine" id="cb38-10" data-line-number="10">      _ <span class="ot">-&gt;</span> checkError <span class="fu">$</span> <span class="dt">MalformedIntroE</span> loc</a>
-<a class="sourceLine" id="cb38-11" data-line-number="11"></a>
-<a class="sourceLine" id="cb38-12" data-line-number="12">  <span class="dt">ElimE</span> loc w u x pe pi <span class="ot">-&gt;</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb38-13" data-line-number="13">    qe <span class="ot">&lt;-</span> checkProof pe</a>
-<a class="sourceLine" id="cb38-14" data-line-number="14">    qi <span class="ot">&lt;-</span> unusedInHyp loc u <span class="fu">$</span> checkProof pi</a>
-<a class="sourceLine" id="cb38-15" data-line-number="15">    <span class="kw">case</span> (qe, qi) <span class="kw">of</span></a>
-<a class="sourceLine" id="cb38-16" data-line-number="16">      (<span class="dt">JSome</span> _ y pe, <span class="dt">JImpl</span> _ pi m) <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb38-17" data-line-number="17">        <span class="kw">if</span> y <span class="fu">==</span> x</a>
-<a class="sourceLine" id="cb38-18" data-line-number="18">          <span class="kw">then</span> <span class="kw">if</span> pi <span class="fu">==</span> (x <span class="fu">--&gt;</span> (<span class="dt">EVar</span> <span class="dt">Q</span> u)) <span class="fu">$&gt;</span> pe</a>
-<a class="sourceLine" id="cb38-19" data-line-number="19">            <span class="kw">then</span> <span class="kw">if</span> (S.member u (freeExprVars pe))</a>
-<a class="sourceLine" id="cb38-20" data-line-number="20">                   <span class="fu">||</span> (S.member u (freeExprVars m))</a>
-<a class="sourceLine" id="cb38-21" data-line-number="21">              <span class="kw">then</span> checkError <span class="fu">$</span> <span class="dt">ElimEBindVar</span> loc</a>
-<a class="sourceLine" id="cb38-22" data-line-number="22">              <span class="kw">else</span> <span class="kw">if</span> w <span class="fu">==</span> m</a>
-<a class="sourceLine" id="cb38-23" data-line-number="23">                <span class="kw">then</span> return w</a>
-<a class="sourceLine" id="cb38-24" data-line-number="24">                <span class="kw">else</span> checkError <span class="fu">$</span> <span class="dt">MalformedElimE</span> loc</a>
-<a class="sourceLine" id="cb38-25" data-line-number="25">            <span class="kw">else</span> checkError <span class="fu">$</span> <span class="dt">MalformedElimE</span> loc</a>
-<a class="sourceLine" id="cb38-26" data-line-number="26">          <span class="kw">else</span> checkError <span class="fu">$</span> <span class="dt">SomeVarMismatch</span> loc</a></code></pre></div>
+<div class="sourceCode" id="cb37"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb37-1" data-line-number="1">  <span class="dt">IntroE</span> loc w x e pf <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb37-2" data-line-number="2">    q <span class="ot">&lt;-</span> checkProof pf</a>
+<a class="sourceLine" id="cb37-3" data-line-number="3">    <span class="kw">case</span> w <span class="kw">of</span></a>
+<a class="sourceLine" id="cb37-4" data-line-number="4">      <span class="dt">JSome</span> _ y p <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb37-5" data-line-number="5">        <span class="kw">if</span> x <span class="fu">==</span> y</a>
+<a class="sourceLine" id="cb37-6" data-line-number="6">          <span class="kw">then</span> <span class="kw">if</span> q <span class="fu">==</span> (x <span class="fu">--&gt;</span> e) <span class="fu">$&gt;</span> p</a>
+<a class="sourceLine" id="cb37-7" data-line-number="7">            <span class="kw">then</span> return w</a>
+<a class="sourceLine" id="cb37-8" data-line-number="8">            <span class="kw">else</span> checkError <span class="fu">$</span> <span class="dt">SomeSubMismatch</span> loc</a>
+<a class="sourceLine" id="cb37-9" data-line-number="9">          <span class="kw">else</span> checkError <span class="fu">$</span> <span class="dt">SomeVarMismatch</span> loc</a>
+<a class="sourceLine" id="cb37-10" data-line-number="10">      _ <span class="ot">-&gt;</span> checkError <span class="fu">$</span> <span class="dt">MalformedIntroE</span> loc</a>
+<a class="sourceLine" id="cb37-11" data-line-number="11"></a>
+<a class="sourceLine" id="cb37-12" data-line-number="12">  <span class="dt">ElimE</span> loc w u x pe pi <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb37-13" data-line-number="13">    qe <span class="ot">&lt;-</span> checkProof pe</a>
+<a class="sourceLine" id="cb37-14" data-line-number="14">    qi <span class="ot">&lt;-</span> unusedInHyp loc u <span class="fu">$</span> checkProof pi</a>
+<a class="sourceLine" id="cb37-15" data-line-number="15">    <span class="kw">case</span> (qe, qi) <span class="kw">of</span></a>
+<a class="sourceLine" id="cb37-16" data-line-number="16">      (<span class="dt">JSome</span> _ y pe, <span class="dt">JImpl</span> _ pi m) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb37-17" data-line-number="17">        <span class="kw">if</span> y <span class="fu">==</span> x</a>
+<a class="sourceLine" id="cb37-18" data-line-number="18">          <span class="kw">then</span> <span class="kw">if</span> pi <span class="fu">==</span> (x <span class="fu">--&gt;</span> (<span class="dt">EVar</span> <span class="dt">Q</span> u)) <span class="fu">$&gt;</span> pe</a>
+<a class="sourceLine" id="cb37-19" data-line-number="19">            <span class="kw">then</span> <span class="kw">if</span> (S.member u (freeExprVars pe))</a>
+<a class="sourceLine" id="cb37-20" data-line-number="20">                   <span class="fu">||</span> (S.member u (freeExprVars m))</a>
+<a class="sourceLine" id="cb37-21" data-line-number="21">              <span class="kw">then</span> checkError <span class="fu">$</span> <span class="dt">ElimEBindVar</span> loc</a>
+<a class="sourceLine" id="cb37-22" data-line-number="22">              <span class="kw">else</span> <span class="kw">if</span> w <span class="fu">==</span> m</a>
+<a class="sourceLine" id="cb37-23" data-line-number="23">                <span class="kw">then</span> return w</a>
+<a class="sourceLine" id="cb37-24" data-line-number="24">                <span class="kw">else</span> checkError <span class="fu">$</span> <span class="dt">MalformedElimE</span> loc</a>
+<a class="sourceLine" id="cb37-25" data-line-number="25">            <span class="kw">else</span> checkError <span class="fu">$</span> <span class="dt">MalformedElimE</span> loc</a>
+<a class="sourceLine" id="cb37-26" data-line-number="26">          <span class="kw">else</span> checkError <span class="fu">$</span> <span class="dt">SomeVarMismatch</span> loc</a>
+<a class="sourceLine" id="cb37-27" data-line-number="27">      _ <span class="ot">-&gt;</span> checkError <span class="fu">$</span> <span class="dt">MalformedElimE</span> loc</a></code></pre></div>
 <p>The existential introduction and elimination rules need to check their respective side conditions.</p>
-<div class="sourceCode" id="cb39"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb39-1" data-line-number="1">  <span class="dt">Use</span> loc name c ps <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<div class="sourceCode" id="cb38"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb38-1" data-line-number="1">  <span class="dt">Use</span> loc name c ps <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb38-2" data-line-number="2">    hs <span class="ot">&lt;-</span> mapM checkProof ps</a>
+<a class="sourceLine" id="cb38-3" data-line-number="3">    r <span class="ot">&lt;-</span> lookupRule name</a>
+<a class="sourceLine" id="cb38-4" data-line-number="4">    <span class="kw">case</span> matchRule r c hs <span class="kw">of</span></a>
+<a class="sourceLine" id="cb38-5" data-line-number="5">      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> checkError <span class="fu">$</span> <span class="dt">RuleDoesNotMatch</span> loc name r (c<span class="fu">:</span>hs)</a>
+<a class="sourceLine" id="cb38-6" data-line-number="6">      <span class="dt">Just</span> _ <span class="ot">-&gt;</span> return c</a></code></pre></div>
+<div class="sourceCode" id="cb39"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb39-1" data-line-number="1">  <span class="dt">Invoke</span> loc name c ps t <span class="ot">-&gt;</span> <span class="kw">do</span></a>
 <a class="sourceLine" id="cb39-2" data-line-number="2">    hs <span class="ot">&lt;-</span> mapM checkProof ps</a>
 <a class="sourceLine" id="cb39-3" data-line-number="3">    r <span class="ot">&lt;-</span> lookupRule name</a>
-<a class="sourceLine" id="cb39-4" data-line-number="4">    <span class="kw">case</span> matchRule r c hs <span class="kw">of</span></a>
-<a class="sourceLine" id="cb39-5" data-line-number="5">      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> checkError <span class="fu">$</span> <span class="dt">RuleDoesNotMatch</span> loc name r (c<span class="fu">:</span>hs)</a>
+<a class="sourceLine" id="cb39-4" data-line-number="4">    <span class="kw">case</span> matchRule (captureJudSubRule t r) c hs <span class="kw">of</span></a>
+<a class="sourceLine" id="cb39-5" data-line-number="5">      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> checkError <span class="fu">$</span> <span class="dt">InvokeDoesNotMatch</span> loc name r (captureJudSubRule t r) (c<span class="fu">:</span>hs)</a>
 <a class="sourceLine" id="cb39-6" data-line-number="6">      <span class="dt">Just</span> _ <span class="ot">-&gt;</span> return c</a></code></pre></div>
 <p>Finally we have <code>Use</code>; these proofs are checked by recursively checking the child proofs and then verifying that the named rule matches.</p>
 <p>And with that, we can express and check proofs. The <code>check</code> function</p>
@@ -691,50 +690,60 @@ R &amp;                 &amp; Q \\ \hline
 <a class="sourceLine" id="cb42-14" data-line-number="14">    , checkTypes pe</a>
 <a class="sourceLine" id="cb42-15" data-line-number="15">    , checkTypes pf</a>
 <a class="sourceLine" id="cb42-16" data-line-number="16">    ] env</a>
-<a class="sourceLine" id="cb42-17" data-line-number="17">  <span class="dt">Subst</span> _ w s pf <span class="ot">-&gt;</span> concatM</a>
+<a class="sourceLine" id="cb42-17" data-line-number="17">  <span class="dt">IntroU</span> _ w x y pf <span class="ot">-&gt;</span> concatM</a>
 <a class="sourceLine" id="cb42-18" data-line-number="18">    [ typeCheck w</a>
 <a class="sourceLine" id="cb42-19" data-line-number="19">    , checkTypes pf</a>
 <a class="sourceLine" id="cb42-20" data-line-number="20">    ] env</a>
-<a class="sourceLine" id="cb42-21" data-line-number="21">  <span class="dt">IntroU</span> _ w x y pf <span class="ot">-&gt;</span> concatM</a>
+<a class="sourceLine" id="cb42-21" data-line-number="21">  <span class="dt">ElimU</span> _ w x e pf <span class="ot">-&gt;</span> concatM</a>
 <a class="sourceLine" id="cb42-22" data-line-number="22">    [ typeCheck w</a>
 <a class="sourceLine" id="cb42-23" data-line-number="23">    , checkTypes pf</a>
 <a class="sourceLine" id="cb42-24" data-line-number="24">    ] env</a>
-<a class="sourceLine" id="cb42-25" data-line-number="25">  <span class="dt">ElimU</span> _ w x e pf <span class="ot">-&gt;</span> concatM</a>
+<a class="sourceLine" id="cb42-25" data-line-number="25">  <span class="dt">IntroE</span> _ w x e pf <span class="ot">-&gt;</span> concatM</a>
 <a class="sourceLine" id="cb42-26" data-line-number="26">    [ typeCheck w</a>
 <a class="sourceLine" id="cb42-27" data-line-number="27">    , checkTypes pf</a>
 <a class="sourceLine" id="cb42-28" data-line-number="28">    ] env</a>
-<a class="sourceLine" id="cb42-29" data-line-number="29">  <span class="dt">IntroE</span> _ w x e pf <span class="ot">-&gt;</span> concatM</a>
+<a class="sourceLine" id="cb42-29" data-line-number="29">  <span class="dt">ElimE</span> _ w u x pe pi <span class="ot">-&gt;</span> concatM</a>
 <a class="sourceLine" id="cb42-30" data-line-number="30">    [ typeCheck w</a>
-<a class="sourceLine" id="cb42-31" data-line-number="31">    , checkTypes pf</a>
-<a class="sourceLine" id="cb42-32" data-line-number="32">    ] env</a>
-<a class="sourceLine" id="cb42-33" data-line-number="33">  <span class="dt">ElimE</span> _ w u x pe pi <span class="ot">-&gt;</span> concatM</a>
-<a class="sourceLine" id="cb42-34" data-line-number="34">    [ typeCheck w</a>
-<a class="sourceLine" id="cb42-35" data-line-number="35">    , checkTypes pe</a>
-<a class="sourceLine" id="cb42-36" data-line-number="36">    , checkTypes pi</a>
-<a class="sourceLine" id="cb42-37" data-line-number="37">    ] env</a>
-<a class="sourceLine" id="cb42-38" data-line-number="38">  <span class="dt">Use</span> _ n q pfs <span class="ot">-&gt;</span> concatM</a>
-<a class="sourceLine" id="cb42-39" data-line-number="39">    ( typeCheck q <span class="fu">:</span> map checkTypes pfs ) env</a></code></pre></div>
+<a class="sourceLine" id="cb42-31" data-line-number="31">    , checkTypes pe</a>
+<a class="sourceLine" id="cb42-32" data-line-number="32">    , checkTypes pi</a>
+<a class="sourceLine" id="cb42-33" data-line-number="33">    ] env</a>
+<a class="sourceLine" id="cb42-34" data-line-number="34">  <span class="dt">Use</span> _ n q pfs <span class="ot">-&gt;</span> concatM</a>
+<a class="sourceLine" id="cb42-35" data-line-number="35">    ( typeCheck q <span class="fu">:</span> map checkTypes pfs ) env</a>
+<a class="sourceLine" id="cb42-36" data-line-number="36">  <span class="dt">Invoke</span> _ n q pfs s <span class="ot">-&gt;</span> concatM</a>
+<a class="sourceLine" id="cb42-37" data-line-number="37">    ( typeCheck q <span class="fu">:</span> map checkTypes pfs ) env</a></code></pre></div>
 <p>We just need a utility for lifting inference errors to verification errors.</p>
-<div class="sourceCode" id="cb43"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb43-1" data-line-number="1"><span class="ot">liftInfer ::</span> <span class="dt">Infer</span> a <span class="ot">-&gt;</span> <span class="dt">Either</span> <span class="dt">VerifyError</span> a</a>
-<a class="sourceLine" id="cb43-2" data-line-number="2">liftInfer x <span class="fu">=</span> <span class="kw">case</span> execInfer x <span class="kw">of</span></a>
-<a class="sourceLine" id="cb43-3" data-line-number="3">  <span class="dt">Left</span> (<span class="dt">Left</span> err) <span class="ot">-&gt;</span> <span class="dt">Left</span> <span class="fu">$</span> <span class="dt">TypeUnificationError</span> err</a>
-<a class="sourceLine" id="cb43-4" data-line-number="4">  <span class="dt">Left</span> (<span class="dt">Right</span> err) <span class="ot">-&gt;</span> <span class="dt">Left</span> <span class="fu">$</span> <span class="dt">InferenceError</span> err</a>
+<div class="sourceCode" id="cb43"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb43-1" data-line-number="1"><span class="ot">liftInfer ::</span> <span class="dt">Loc</span> <span class="ot">-&gt;</span> <span class="dt">Infer</span> a <span class="ot">-&gt;</span> <span class="dt">Either</span> <span class="dt">VerifyError</span> a</a>
+<a class="sourceLine" id="cb43-2" data-line-number="2">liftInfer loc x <span class="fu">=</span> <span class="kw">case</span> execInfer x <span class="kw">of</span></a>
+<a class="sourceLine" id="cb43-3" data-line-number="3">  <span class="dt">Left</span> (<span class="dt">Left</span> err) <span class="ot">-&gt;</span> <span class="dt">Left</span> <span class="fu">$</span> <span class="dt">TypeUnificationError</span> loc err</a>
+<a class="sourceLine" id="cb43-4" data-line-number="4">  <span class="dt">Left</span> (<span class="dt">Right</span> err) <span class="ot">-&gt;</span> <span class="dt">Left</span> <span class="fu">$</span> <span class="dt">InferenceError</span> loc err</a>
 <a class="sourceLine" id="cb43-5" data-line-number="5">  <span class="dt">Right</span> a <span class="ot">-&gt;</span> return a</a></code></pre></div>
 <h2 id="claims">Claims</h2>
 <p>An <em>axiom</em> is a rule we accept without proof, while a <em>theorem</em> is a rule we accept only with a valid proof. Collectively axioms and theorems are called <em>claims</em>.</p>
 <div class="sourceCode" id="cb44"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb44-1" data-line-number="1"><span class="kw">data</span> <span class="dt">Claim</span></a>
-<a class="sourceLine" id="cb44-2" data-line-number="2">  <span class="fu">=</span> <span class="dt">Axiom</span> <span class="dt">RuleName</span> <span class="dt">Rule</span></a>
+<a class="sourceLine" id="cb44-2" data-line-number="2">  <span class="fu">=</span> <span class="dt">Axiom</span> <span class="dt">RuleType</span> <span class="dt">RuleName</span> <span class="dt">Rule</span></a>
 <a class="sourceLine" id="cb44-3" data-line-number="3">  <span class="fu">|</span> <span class="dt">Theorem</span> <span class="dt">RuleName</span> <span class="dt">Rule</span> <span class="dt">Proof</span></a>
 <a class="sourceLine" id="cb44-4" data-line-number="4">  <span class="fu">|</span> <span class="dt">TypeDecl</span> (<span class="dt">Con</span> <span class="dt">Expr</span>) <span class="dt">MonoType</span></a>
 <a class="sourceLine" id="cb44-5" data-line-number="5">  <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>)</a>
 <a class="sourceLine" id="cb44-6" data-line-number="6"></a>
-<a class="sourceLine" id="cb44-7" data-line-number="7"><span class="kw">instance</span> <span class="dt">Arbitrary</span> <span class="dt">Claim</span> <span class="kw">where</span></a>
-<a class="sourceLine" id="cb44-8" data-line-number="8">  arbitrary <span class="fu">=</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb44-9" data-line-number="9">    k <span class="ot">&lt;- arbitrary ::</span> <span class="dt">Gen</span> <span class="dt">Int</span></a>
-<a class="sourceLine" id="cb44-10" data-line-number="10">    <span class="kw">case</span> k<span class="ot">`mod`</span><span class="dv">3</span> <span class="kw">of</span></a>
-<a class="sourceLine" id="cb44-11" data-line-number="11">      <span class="dv">0</span> <span class="ot">-&gt;</span> <span class="dt">Axiom</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
-<a class="sourceLine" id="cb44-12" data-line-number="12">      <span class="dv">1</span> <span class="ot">-&gt;</span> <span class="dt">Theorem</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
-<a class="sourceLine" id="cb44-13" data-line-number="13">      _ <span class="ot">-&gt;</span> <span class="dt">TypeDecl</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a></code></pre></div>
+<a class="sourceLine" id="cb44-7" data-line-number="7"><span class="kw">data</span> <span class="dt">RuleType</span></a>
+<a class="sourceLine" id="cb44-8" data-line-number="8">  <span class="fu">=</span> <span class="dt">InferenceRule</span></a>
+<a class="sourceLine" id="cb44-9" data-line-number="9">  <span class="fu">|</span> <span class="dt">Definition</span></a>
+<a class="sourceLine" id="cb44-10" data-line-number="10">  <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>)</a>
+<a class="sourceLine" id="cb44-11" data-line-number="11"></a>
+<a class="sourceLine" id="cb44-12" data-line-number="12"><span class="kw">instance</span> <span class="dt">Arbitrary</span> <span class="dt">Claim</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb44-13" data-line-number="13">  arbitrary <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb44-14" data-line-number="14">    k <span class="ot">&lt;- arbitrary ::</span> <span class="dt">Gen</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb44-15" data-line-number="15">    <span class="kw">case</span> k<span class="ot">`mod`</span><span class="dv">3</span> <span class="kw">of</span></a>
+<a class="sourceLine" id="cb44-16" data-line-number="16">      <span class="dv">0</span> <span class="ot">-&gt;</span> <span class="dt">Axiom</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
+<a class="sourceLine" id="cb44-17" data-line-number="17">      <span class="dv">1</span> <span class="ot">-&gt;</span> <span class="dt">Theorem</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
+<a class="sourceLine" id="cb44-18" data-line-number="18">      _ <span class="ot">-&gt;</span> <span class="dt">TypeDecl</span> <span class="fu">&lt;$&gt;</span> arbitrary <span class="fu">&lt;*&gt;</span> arbitrary</a>
+<a class="sourceLine" id="cb44-19" data-line-number="19"></a>
+<a class="sourceLine" id="cb44-20" data-line-number="20"><span class="kw">instance</span> <span class="dt">Arbitrary</span> <span class="dt">RuleType</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb44-21" data-line-number="21">  arbitrary <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb44-22" data-line-number="22">    p <span class="ot">&lt;-</span> arbitrary</a>
+<a class="sourceLine" id="cb44-23" data-line-number="23">    <span class="kw">if</span> p</a>
+<a class="sourceLine" id="cb44-24" data-line-number="24">      <span class="kw">then</span> return <span class="dt">InferenceRule</span></a>
+<a class="sourceLine" id="cb44-25" data-line-number="25">      <span class="kw">else</span> return <span class="dt">Definition</span></a></code></pre></div>
 <p>A <em>theory</em> is a list of claims with the property that proofs only refer to named claims appearing earlier in the list. If the proof of a rule is valid, it can be added to the rule environment.</p>
 <div class="sourceCode" id="cb45"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb45-1" data-line-number="1"><span class="ot">addRule ::</span> <span class="dt">RuleName</span> <span class="ot">-&gt;</span> <span class="dt">Rule</span> <span class="ot">-&gt;</span> <span class="dt">RuleEnv</span> <span class="ot">-&gt;</span> <span class="dt">Either</span> <span class="dt">VerifyError</span> <span class="dt">RuleEnv</span></a>
 <a class="sourceLine" id="cb45-2" data-line-number="2">addRule name rule (<span class="dt">RuleEnv</span> m) <span class="fu">=</span></a>
@@ -750,16 +759,16 @@ R &amp;                 &amp; Q \\ \hline
 <a class="sourceLine" id="cb45-12" data-line-number="12">    <span class="dt">Just</span> _ <span class="ot">-&gt;</span> <span class="dt">Left</span> <span class="fu">$</span> <span class="dt">TypeAlreadyDefined</span> (generalize env t)</a>
 <a class="sourceLine" id="cb45-13" data-line-number="13"></a>
 <a class="sourceLine" id="cb45-14" data-line-number="14">checkClaim</a>
-<a class="sourceLine" id="cb45-15" data-line-number="15"><span class="ot">  ::</span> (<span class="dt">TypeEnv</span>, <span class="dt">RuleEnv</span>) <span class="ot">-&gt;</span> <span class="dt">Claim</span></a>
+<a class="sourceLine" id="cb45-15" data-line-number="15"><span class="ot">  ::</span> (<span class="dt">TypeEnv</span>, <span class="dt">RuleEnv</span>) <span class="ot">-&gt;</span> (<span class="dt">Loc</span>, <span class="dt">Claim</span>)</a>
 <a class="sourceLine" id="cb45-16" data-line-number="16">  <span class="ot">-&gt;</span> <span class="dt">Either</span> <span class="dt">VerifyError</span> (<span class="dt">TypeEnv</span>, <span class="dt">RuleEnv</span>)</a>
-<a class="sourceLine" id="cb45-17" data-line-number="17">checkClaim (typeEnv, ruleEnv) claim <span class="fu">=</span> <span class="kw">case</span> claim <span class="kw">of</span></a>
-<a class="sourceLine" id="cb45-18" data-line-number="18">  <span class="dt">Axiom</span> name rule <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb45-17" data-line-number="17">checkClaim (typeEnv, ruleEnv) (loc, claim) <span class="fu">=</span> <span class="kw">case</span> claim <span class="kw">of</span></a>
+<a class="sourceLine" id="cb45-18" data-line-number="18">  <span class="dt">Axiom</span> _ name rule <span class="ot">-&gt;</span> <span class="kw">do</span></a>
 <a class="sourceLine" id="cb45-19" data-line-number="19">    ruleEnv&#39; <span class="ot">&lt;-</span> addRule name rule ruleEnv</a>
-<a class="sourceLine" id="cb45-20" data-line-number="20">    liftInfer <span class="fu">$</span> typeCheck rule typeEnv</a>
+<a class="sourceLine" id="cb45-20" data-line-number="20">    liftInfer loc <span class="fu">$</span> typeCheck rule typeEnv</a>
 <a class="sourceLine" id="cb45-21" data-line-number="21">    return (typeEnv, ruleEnv&#39;)</a>
 <a class="sourceLine" id="cb45-22" data-line-number="22">  <span class="dt">Theorem</span> name rule proof <span class="ot">-&gt;</span> <span class="kw">do</span></a>
 <a class="sourceLine" id="cb45-23" data-line-number="23">    validate ruleEnv rule proof</a>
-<a class="sourceLine" id="cb45-24" data-line-number="24">    liftInfer <span class="fu">$</span> checkTypes proof typeEnv</a>
+<a class="sourceLine" id="cb45-24" data-line-number="24">    liftInfer loc <span class="fu">$</span> checkTypes proof typeEnv</a>
 <a class="sourceLine" id="cb45-25" data-line-number="25">    ruleEnv&#39; <span class="ot">&lt;-</span> addRule name rule ruleEnv</a>
 <a class="sourceLine" id="cb45-26" data-line-number="26">    return (typeEnv, ruleEnv&#39;)</a>
 <a class="sourceLine" id="cb45-27" data-line-number="27">  <span class="dt">TypeDecl</span> x t <span class="ot">-&gt;</span> <span class="kw">do</span></a>
@@ -767,7 +776,7 @@ R &amp;                 &amp; Q \\ \hline
 <a class="sourceLine" id="cb45-29" data-line-number="29">    return (typeEnv&#39;, ruleEnv)</a></code></pre></div>
 <p>We can also check an entire list of claims, adding each to the rule environment as it is checked.</p>
 <div class="sourceCode" id="cb46"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb46-1" data-line-number="1">checkClaims</a>
-<a class="sourceLine" id="cb46-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">TypeEnv</span>, <span class="dt">RuleEnv</span>) <span class="ot">-&gt;</span> [<span class="dt">Claim</span>]</a>
+<a class="sourceLine" id="cb46-2" data-line-number="2"><span class="ot">  ::</span> (<span class="dt">TypeEnv</span>, <span class="dt">RuleEnv</span>) <span class="ot">-&gt;</span> [(<span class="dt">Loc</span>, <span class="dt">Claim</span>)]</a>
 <a class="sourceLine" id="cb46-3" data-line-number="3">  <span class="ot">-&gt;</span> <span class="dt">Either</span> <span class="dt">VerifyError</span> (<span class="dt">TypeEnv</span>, <span class="dt">RuleEnv</span>)</a>
 <a class="sourceLine" id="cb46-4" data-line-number="4">checkClaims env cs <span class="fu">=</span> <span class="kw">case</span> cs <span class="kw">of</span></a>
 <a class="sourceLine" id="cb46-5" data-line-number="5">  [] <span class="ot">-&gt;</span> return env</a>
