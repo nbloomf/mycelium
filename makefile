@@ -10,7 +10,7 @@ files = \
   docs/Module.html \
   docs/Fancy.html \
   docs/Parser.html \
-  docs/Deps.html
+  docs/Dep.html
 
 docs: $(files) docs/Tests.html docs/Main.html
 
