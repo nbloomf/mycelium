@@ -14,6 +14,7 @@ and
 
 This way we can write mycelium proofs in markdown, and markdown processors (like pandoc) can display the proofs as code.
 
+> {-# LANGUAGE ScopedTypeVariables #-}
 > module Main where
 > 
 > import Data.List
@@ -65,7 +66,8 @@ The main program takes a list of filenames, parses them as modules, and checks t
 > processLiterate :: String -> Maybe String
 > processLiterate x = 
 >   unlines <$>
->     spliceBy
+>     maskBetween
+>       ""
 >       (isPrefixOf "~~~ {.mycelium")
 >       (isPrefixOf "~")
 >       (lines x)
@@ -77,3 +79,21 @@ The main program takes a list of filenames, parses them as modules, and checks t
 >     _:ys -> case span (not . b) ys of
 >       (w,[]) -> Nothing
 >       (w,_:zs) -> (w ++) <$> spliceBy a b zs
+
+> maskBetween
+>   :: forall a
+>    . a -> (a -> Bool) -> (a -> Bool) -> [a] -> Maybe [a]
+> maskBetween def start end = f False
+>   where
+>     f :: Bool -> [a] -> Maybe [a]
+>     f p xs = if p
+>       then case xs of
+>         [] -> Nothing
+>         a:as -> if end a
+>           then (def :) <$> f False as
+>           else (a :) <$> f True as
+>       else case xs of
+>         [] -> Just []
+>         a:as -> if start a
+>           then (def :) <$> f True as
+>           else (def :) <$> f False as

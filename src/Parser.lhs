@@ -1299,6 +1299,7 @@ A module is just a list of claims.
 > 
 >   parseBasic = do
 >     name <- sourceName <$> getPosition
+>     many newline
 >     m <- many parseBasic
 >     eof
 >     return (Module (ModuleName name) m)
