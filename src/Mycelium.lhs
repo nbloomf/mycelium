@@ -37,6 +37,7 @@ Contents
 * Appendices
   * [Main](./Main.html)
   * [Tests](./Tests.html)
+  * [Dependency Visualization](./Dep.html)
 
 
 

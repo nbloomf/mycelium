@@ -17,6 +17,8 @@ title: Dependencies
 > import Proof
 > import Module
 
+In this module we'll make a little utility for visualizing the dependency graph of a list of claims.
+
 > data Dep
 >   = DepInferenceRule RuleName
 >   | DepDefinition RuleName
@@ -54,7 +56,7 @@ title: Dependencies
 > getDeps = catMaybes . map toDep
 
 > getAllDeps :: [Module] -> [Dep]
-> getAllDeps = concatMap (\(Module _ cs) -> getDeps cs)
+> getAllDeps = concatMap (\(Module _ cs) -> getDeps $ map snd cs)
 
 > summarizeDeps :: [Dep] -> (Int, Int, Int)
 > summarizeDeps = foldr (\(a1,b1,c1) (a2,b2,c2) -> (a1+a2,b1+b2,c1+c2)) (0,0,0) . map f

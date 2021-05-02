@@ -59,6 +59,14 @@ We also need some parsing helpers. First a utility to get the `Loc`ation of the 
 > getLoc = do
 >   pos <- getPosition
 >   return $ Loc (sourceName pos) (sourceLine pos) (sourceColumn pos)
+> 
+> instance (PrettyBasic t) => PrettyBasic (Loc, t) where
+>   prettyBasic (_, t) = prettyBasic t
+> 
+>   parseBasic = do
+>     loc <- getLoc
+>     t <- parseBasic
+>     return (loc, t)
 
 We'll also be tossing out lots of whitespace. But the `spaces` parser built into parsec eats newlines, which we want to avoid. `spaceChars` parses only spaces.
 
@@ -582,7 +590,7 @@ The judgement grammar uses infix notation; we use parsec's built in `buildExpres
 >     JEq _ e f -> concat
 >       [ prettyBasic e, " == ", prettyBasic f ]
 >     JIs _ e m -> concat
->       [ prettyBasicWrap e, " 'is ", "\"", m, "\"" ]
+>       [ "<" ++ intercalate "," (map prettyBasicWrap e), "> 'is ", "\"", m, "\"" ]
 >     JAll _ x p -> concat
 >       [ "∀", prettyBasic x, ".", prettyBasicWrap p ]
 >     JSome _ x p -> concat
@@ -613,7 +621,7 @@ The judgement grammar uses infix notation; we use parsec's built in `buildExpres
 > 
 >         , [ Infix (do
 >             { loc <- getLoc
->             ; string "<=>" >> spaceChars >> return (JEqui loc)
+>             ; string "<=>" >> spaceOrNewlines >> return (JEqui loc)
 >             }) AssocNone ]
 > 
 >         , [ Prefix $ do
@@ -651,10 +659,12 @@ The judgement grammar uses infix notation; we use parsec's built in `buildExpres
 > 
 >           parseIs = do
 >             (e,loc) <- try $ do
->               e' <- parseBasic
+>               char '<' >> spaceChars
+>               es' <- sepBy parseBasic (char ',' >> spaceChars)
+>               char '>' >> spaceChars
 >               loc' <- getLoc
 >               string "'is" >> spaceChars
->               return (e',loc')
+>               return (es',loc')
 >             char '"'
 >             m <- many1 $ oneOf _is_chars
 >             char '"' >> spaceChars
@@ -1331,5 +1341,14 @@ Errors
 >     , prettyBasic w
 >     , prettyBasic v
 >     ]
+
+>   TypeUnificationError loc err -> case err of
+>     CannotUnify t1 t2 -> unlines
+>       [ "At " <> show loc
+>       , "Cannot unify types:"
+>       , "* " <> prettyBasic t1
+>       , "* " <> prettyBasic t2
+>       ]
+>     e -> unlines [ "TypeUnificationError", show e ]
 
 >   err -> show err

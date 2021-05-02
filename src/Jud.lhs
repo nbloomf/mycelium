@@ -49,7 +49,7 @@ First we have the basic logical connectives; variables, negation, conjunction, d
 Next we have three connectives involving expressions.
 
 >   | JEq Loc Expr Expr
->   | JIs Loc Expr String
+>   | JIs Loc [Expr] String
 >   | JAll Loc (Var Expr) Jud
 >   | JSome Loc (Var Expr) Jud
 >   deriving (Show)
@@ -123,7 +123,7 @@ Every judgement has a (possibly empty) set of free expression variables. Variabl
 >   JImpl !loc p q -> S.union (freeExprVarsJ p) (freeExprVarsJ q)
 >   JEqui !loc p q -> S.union (freeExprVarsJ p) (freeExprVarsJ q)
 >   JEq !loc e f -> S.union (freeExprVars e) (freeExprVars f)
->   JIs !loc e _ -> freeExprVars e
+>   JIs !loc es _ -> S.unions $ map freeExprVars es
 > 
 >   JAll !loc x q ->
 >     S.difference (freeExprVarsJ q) (S.singleton x)
@@ -148,8 +148,8 @@ We need to be able to rename free expressions variables in a capture-avoiding wa
 >     JEqui loc (renameFreeJ (u,v) p) (renameFreeJ (u,v) q)
 >   JEq !loc e f ->
 >     JEq loc (renameFreeExpr (u,v) e) (renameFreeExpr (u,v) f)
->   JIs !loc e m ->
->     JIs loc (renameFreeExpr (u,v) e) m
+>   JIs !loc es m ->
+>     JIs loc (map (renameFreeExpr (u,v)) es) m
 > 
 >   JAll !loc x q -> if (x == u) || (x == v)
 >     then
@@ -189,8 +189,8 @@ Next we tackle renaming bound variables.
 >     JEqui loc (renameBoundJ avoid p) (renameBoundJ avoid q)
 >   JEq !loc e f ->
 >     JEq loc (renameBoundExpr avoid e) (renameBoundExpr avoid f)
->   JIs !loc e m ->
->     JIs loc (renameBoundExpr avoid e) m
+>   JIs !loc es m ->
+>     JIs loc (map (renameBoundExpr avoid) es) m
 > 
 >   JAll !loc x q -> if S.member x avoid
 >     then
@@ -268,7 +268,7 @@ We'll need to apply substitutions to judgements in two ways: for judgement varia
 >     JImpl !loc q1 q2 -> JImpl loc (s $> q1) (s $> q2)
 >     JEqui !loc q1 q2 -> JEqui loc (s $> q1) (s $> q2)
 >     JEq !loc e1 e2 -> JEq loc (s $> e1) (s $> e2)
->     JIs !loc e str -> JIs loc (s $> e) str
+>     JIs !loc es str -> JIs loc (map (s $>) es) str
 > 
 >     JAll !loc x q ->
 >       let
@@ -448,8 +448,14 @@ For equations, we match either side with the bound variable context and union.
 >       (JIs _ e1 m1, JIs _ e2 m2) ->
 >         if m1 == m2
 >           then do
->             es <- matchExprInContext bound e1 e2
->             Just (emptySub, es)
+>             let
+>               m as bs s = case (as,bs) of
+>                 ([],[]) -> Just (emptySub, s)
+>                 (u:us,v:vs) -> do
+>                   s2 <- matchExprInContext bound u v
+>                   s3 <- unionSub s s2
+>                   m us vs s3
+>             m e1 e2 emptySub
 >           else Nothing
 
 Is statements are similar to equations; match the expressions with the bound context.
@@ -512,12 +518,12 @@ This case matches the judgement variable $P$ against the judgement $x = y$.
 >             (EVar Q (Var "x1"))
 >             (EVar Q (Var "x2"))))
 >         (JConj Q
->           (JIs Q (EVar Q (Var "x0")) "crunchy")
+>           (JIs Q [EVar Q (Var "x0")] "crunchy")
 >           (JEq Q
 >             (ELam Q (Var "x0") (EVar Q (Var "x0")))
 >             (EVar Q (Var "x2")))))
 >       (Just
->         ( Var "P" --> (JIs Q (EVar Q (Var "x0")) "crunchy")
+>         ( Var "P" --> (JIs Q [EVar Q (Var "x0")] "crunchy")
 >         , (Var "x1" --> (ELam Q (Var "x0") (EVar Q (Var "x0"))))
 >           .& (Var "x2" --> EVar Q (Var "x2"))))
 
@@ -612,9 +618,14 @@ Finally, we can also check that the expressions in a judgement can be consistent
 >         Left err -> throwU err
 >         Right w -> return (w $. env4)
 >     JIs _ e _ -> do
->       env2 <- introTypeVars (freeExprVars e) env
->       (se,_) <- infer env2 e
->       return (se $. env2)
+>       env2 <- introTypeVars (S.unions $ map freeExprVars e) env
+>       let
+>         m as env' = case as of
+>           [] -> return env'
+>           u:us -> do
+>             (se,_) <- infer env' u
+>             m us (se $. env')
+>       m e env2
 >     JAll _ x q -> do
 >       let TypeEnv m = env
 >       case M.lookup (Right x) m of

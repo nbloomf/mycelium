@@ -515,8 +515,8 @@ We also have a rogues gallery of things that can go wrong with a proof.
 >   | MalformedElimE Loc
 >   | ElimEBindVar Loc
 >   | AllVarMismatch Loc (Var Expr) (Var Expr) Jud Proof
->   | TypeUnificationError UnificationError
->   | InferenceError TypeError
+>   | TypeUnificationError Loc UnificationError
+>   | InferenceError Loc TypeError
 >   deriving (Eq, Show)
 
 A helper for adding a new hypothesis to the environment, making sure its name is unique:
@@ -755,10 +755,10 @@ We can also type check proofs.
 
 We just need a utility for lifting inference errors to verification errors.
 
-> liftInfer :: Infer a -> Either VerifyError a
-> liftInfer x = case execInfer x of
->   Left (Left err) -> Left $ TypeUnificationError err
->   Left (Right err) -> Left $ InferenceError err
+> liftInfer :: Loc -> Infer a -> Either VerifyError a
+> liftInfer loc x = case execInfer x of
+>   Left (Left err) -> Left $ TypeUnificationError loc err
+>   Left (Right err) -> Left $ InferenceError loc err
 >   Right a -> return a
 
 
@@ -810,16 +810,16 @@ A _theory_ is a list of claims with the property that proofs only refer to named
 >     Just _ -> Left $ TypeAlreadyDefined (generalize env t)
 > 
 > checkClaim
->   :: (TypeEnv, RuleEnv) -> Claim
+>   :: (TypeEnv, RuleEnv) -> (Loc, Claim)
 >   -> Either VerifyError (TypeEnv, RuleEnv)
-> checkClaim (typeEnv, ruleEnv) claim = case claim of
+> checkClaim (typeEnv, ruleEnv) (loc, claim) = case claim of
 >   Axiom _ name rule -> do
 >     ruleEnv' <- addRule name rule ruleEnv
->     liftInfer $ typeCheck rule typeEnv
+>     liftInfer loc $ typeCheck rule typeEnv
 >     return (typeEnv, ruleEnv')
 >   Theorem name rule proof -> do
 >     validate ruleEnv rule proof
->     liftInfer $ checkTypes proof typeEnv
+>     liftInfer loc $ checkTypes proof typeEnv
 >     ruleEnv' <- addRule name rule ruleEnv
 >     return (typeEnv, ruleEnv')
 >   TypeDecl x t -> do
@@ -829,7 +829,7 @@ A _theory_ is a list of claims with the property that proofs only refer to named
 We can also check an entire list of claims, adding each to the rule environment as it is checked.
 
 > checkClaims
->   :: (TypeEnv, RuleEnv) -> [Claim]
+>   :: (TypeEnv, RuleEnv) -> [(Loc, Claim)]
 >   -> Either VerifyError (TypeEnv, RuleEnv)
 > checkClaims env cs = case cs of
 >   [] -> return env

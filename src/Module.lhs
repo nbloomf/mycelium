@@ -30,7 +30,7 @@ Modules
 In practice, type definitions, axioms, and theorems will be stored together in text files. We can abstract this idea, multiple claims stored together, as a _module_.
 
 > data Module
->   = Module ModuleName [Claim]
+>   = Module ModuleName [(Loc, Claim)]
 >   deriving (Show)
 > 
 > instance Eq Module where
@@ -227,14 +227,14 @@ We can put all of these claims together in a module and check them for validity.
 > test_toy_theory =
 >   let
 >     claims =
->       [ ax_and_intro
->       , ax_and_elim_1
->       , ax_and_elim_2
->       , thm_and_comm
->       , ax_modus_ponens
->       , thm_imp_trans
->       , ax_eq_intro
->       , thm_eq_sym
+>       [ (Q, ax_and_intro)
+>       , (Q, ax_and_elim_1)
+>       , (Q, ax_and_elim_2)
+>       , (Q, thm_and_comm)
+>       , (Q, ax_modus_ponens)
+>       , (Q, thm_imp_trans)
+>       , (Q, ax_eq_intro)
+>       , (Q, thm_eq_sym)
 >       ]
 > 
 >     m = Module (ModuleName "module") claims
