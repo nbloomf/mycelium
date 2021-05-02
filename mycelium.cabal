@@ -6,7 +6,7 @@ bug-reports:    https://github.com/nbloomf/mycelium/issues
 author:         Nathan Bloomfield
 maintainer:     nbloomf@gmail.com
 copyright:      2018 Automattic, Inc.
-license:        GPL3
+license:        GPL-3
 license-file:   LICENSE
 build-type:     Simple
 cabal-version:  >= 1.10
