@@ -190,7 +190,7 @@ Inference
 
 Almost there! We need two more utility functions on types before we can implement the inference algorithm, which are sort of opposites of each other. Remember that we have two different kinds of types: monotypes and polytypes.
 
-A monotype can be _generalized_ by explicitly quantifying any of its variables that are not free in a given environment.
+A monotype can be _generalized_ by explicitly quantifying any of its variables that are not free in a given environment. For example, the monotype $$\alpha \rightarrow \beta$$ generalizes to $$\forall \alpha\ .\ \forall \beta\ .\ \alpha \rightarrow \beta.$$
 
 > generalize :: TypeEnv -> MonoType -> PolyType
 > generalize env tau = ForAll as tau

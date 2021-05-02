@@ -668,14 +668,16 @@ The existential introduction and elimination rules need to check their respectiv
 >     hs <- mapM checkProof ps
 >     r <- lookupRule name
 >     case matchRule r c hs of
->       Nothing -> checkError $ RuleDoesNotMatch loc name r (c:hs)
+>       Nothing -> checkError $
+>         RuleDoesNotMatch loc name r (c:hs)
 >       Just _ -> return c
 
 >   Invoke loc name c ps t -> do
 >     hs <- mapM checkProof ps
 >     r <- lookupRule name
 >     case matchRule (captureJudSubRule t r) c hs of
->       Nothing -> checkError $ InvokeDoesNotMatch loc name r (captureJudSubRule t r) (c:hs)
+>       Nothing -> checkError $
+>         InvokeDoesNotMatch loc name r (captureJudSubRule t r) (c:hs)
 >       Just _ -> return c
 
 Finally we have `Use`; these proofs are checked by recursively checking the child proofs and then verifying that the named rule matches.

@@ -253,6 +253,10 @@ Test cases:
 >       (Right $ EApp Q (EVar Q (Var "x")) (EVar Q (Var "y")))
 > 
 >   , testBasicParser (Proxy :: Proxy Expr)
+>       "xy"
+>       (Right $ EVar Q (Var "xy"))
+> 
+>   , testBasicParser (Proxy :: Proxy Expr)
 >       "x y z"
 >       (Right $ EApp Q
 >         (EApp Q (EVar Q (Var "x")) (EVar Q (Var "y")))
@@ -1082,7 +1086,8 @@ Parsing fancy proof lines:
 >           "use" -> do
 >             n <- parseBasic
 >             char ';' >> spaceChars
->             us <- (map read) <$> (sepBy (many1 digit) (char ',' >> spaceChars))
+>             us <- (map read) <$>
+>               (sepBy (many1 digit) (char ',' >> spaceChars))
 >             newline
 >             return $ FancyUse loc n w us
 > 
@@ -1091,7 +1096,8 @@ Parsing fancy proof lines:
 >             spaceOrNewlines
 >             t <- parseBasic
 >             spaceChars >> char ';' >> spaceChars
->             us <- (map read) <$> (sepBy (many1 digit) (char ',' >> spaceChars))
+>             us <- (map read) <$>
+>               (sepBy (many1 digit) (char ',' >> spaceChars))
 >             newline
 >             return $ FancyInvoke loc n w us t
 > 
@@ -1108,7 +1114,8 @@ Parsing fancy proof lines:
 >           try (spaceOrNewlines >> string "==" >> spaceChars)
 >           e2 <- parseBasic
 >           spaceOrNewlines >> char ':' >> spaceChars
->           flop <- option False (string "flop" >> spaceChars >> return True)
+>           flop <- option False
+>             (string "flop" >> spaceChars >> return True)
 >           just <- parseChainJust
 >           spaceChars
 >           case just of
@@ -1128,7 +1135,8 @@ Parsing fancy proof lines:
 >             "use" -> do
 >               n <- parseBasic
 >               char ';' >> spaceChars
->               us <- (map read) <$> (sepBy (many1 digit) (char ',' >> spaceChars))
+>               us <- (map read) <$>
+>                 (sepBy (many1 digit) (char ',' >> spaceChars))
 >               spaceChars
 >               h <- parseAtIn
 >               newline

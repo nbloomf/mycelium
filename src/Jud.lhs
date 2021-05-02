@@ -112,7 +112,7 @@ Here's an `Arbitrary` instance for judgements analogous to the ones for `Expr` a
 >     k <- getSize
 >     makeVar <$> elements [0..k]
 
-Every judgement has a (possibly empty) set of free expression variables. Variables can only become bound via the `JAll` rule.
+Every judgement has a (possibly empty) set of free expression variables. Variables can only become bound via the `JAll` and `JSome` rules.
 
 > freeExprVarsJ :: Jud -> S.Set (Var Expr)
 > freeExprVarsJ = \case
@@ -608,8 +608,10 @@ Finally, we can also check that the expressions in a judgement can be consistent
 >     JDisj _ p q -> typeCheck p env >>= typeCheck q
 >     JImpl _ p q -> typeCheck p env >>= typeCheck q
 >     JEqui _ p q -> typeCheck p env >>= typeCheck q
+> 
 >     JEq _ e f -> do
->       env2 <- introTypeVars (S.union (freeExprVars e) (freeExprVars f)) env
+>       env2 <- introTypeVars
+>         (S.union (freeExprVars e) (freeExprVars f)) env
 >       (se,te) <- infer env2 e
 >       let env3 = se $. env2
 >       (sf,tf) <- infer env3 f
@@ -617,6 +619,7 @@ Finally, we can also check that the expressions in a judgement can be consistent
 >       case unifyTypes te tf of
 >         Left err -> throwU err
 >         Right w -> return (w $. env4)
+> 
 >     JIs _ e _ -> do
 >       env2 <- introTypeVars (S.unions $ map freeExprVars e) env
 >       let
@@ -626,6 +629,7 @@ Finally, we can also check that the expressions in a judgement can be consistent
 >             (se,_) <- infer env' u
 >             m us (se $. env')
 >       m e env2
+> 
 >     JAll _ x q -> do
 >       let TypeEnv m = env
 >       case M.lookup (Right x) m of
@@ -642,6 +646,7 @@ Finally, we can also check that the expressions in a judgement can be consistent
 >           introTypeVar y env
 >             >>= typeCheck (renameFreeExpr (x,y) q)
 >             >>= elimTypeVar y
+> 
 >     JSome _ x q -> do
 >       let TypeEnv m = env
 >       case M.lookup (Right x) m of
