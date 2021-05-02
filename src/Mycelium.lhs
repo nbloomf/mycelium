@@ -33,7 +33,6 @@ Contents
   * [Modules](./Module.html)
   * [Fancy Proofs](./Fancy.html)
   * [Parsing](./Parser.html)
-  * [Dependencies](./Deps.html)
 * Appendices
   * [Main](./Main.html)
   * [Tests](./Tests.html)
